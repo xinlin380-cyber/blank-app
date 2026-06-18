@@ -3,110 +3,117 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="台股霓虹燈號", page_icon="💎", layout="wide")
+st.set_page_config(page_title="台股紫光燈號", page_icon="💜", layout="wide")
 
-# --- 瞎趴霓虹CSS ---
+# --- 紫色柔光CSS ---
 st.markdown("""
 <style>
    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+TC:wght@700;900&display=swap');
 
 .stApp {
-        background: #000000;
+        background: #0a0a0f;
         background-image:
-            radial-gradient(circle at 20% 50%, #120078 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, #9d0191 0%, transparent 50%),
-            radial-gradient(circle at 40% 20%, #fd3a69 0%, transparent 50%);
+            radial-gradient(circle at 15% 30%, #2d1b69 0%, transparent 40%),
+            radial-gradient(circle at 85% 70%, #5f0a87 0%, transparent 40%),
+            radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0a0a0f 100%);
     }
-.main {font-family: 'Noto Sans TC', sans-serif; color: #FFFFFF;}
+.main {font-family: 'Noto Sans TC', sans-serif; color: #F0F0FF;}
 
 .stTextInput > div > div > input {
-        background-color: #1a1a2e; color: #00ff88; border: 2px solid #00ff88;
+        background-color: #1a1a2e; color: #E0E0FF; border: 2px solid #8b5cf6;
         font-size: 20px; text-align: center; font-weight: bold;
+        box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
     }
 
 .neon-box {
         padding: 50px; border-radius: 30px; text-align: center; margin: 30px 0;
-        border: 3px solid; position: relative;
+        border: 2px solid; position: relative; backdrop-filter: blur(10px);
     }
 
 .neon-green {
-        border-color: #00ff88;
-        background: rgba(0, 255, 136, 0.1);
-        box-shadow: 0 0 20px #00ff88, 0 0 40px #00ff88, inset 0 0 20px rgba(0, 255, 136, 0.2);
-        animation: flicker-green 3s infinite;
+        border-color: #a78bfa;
+        background: rgba(167, 139, 250, 0.08);
+        box-shadow: 0 0 15px rgba(167, 139, 250, 0.4), inset 0 0 15px rgba(167, 139, 250, 0.1);
+        animation: glow-purple 3s ease-in-out infinite;
     }
 .neon-yellow {
-        border-color: #ffff00;
-        background: rgba(255, 255, 0, 0.1);
-        box-shadow: 0 0 20px #ffff00, 0 0 40px #ffff00, inset 0 0 20px rgba(255, 255, 0, 0.2);
-        animation: pulse-yellow 2s infinite;
+        border-color: #fbbf24;
+        background: rgba(251, 191, 36, 0.08);
+        box-shadow: 0 0 15px rgba(251, 191, 36, 0.4), inset 0 0 15px rgba(251, 191, 36, 0.1);
+        animation: pulse-soft 2s ease-in-out infinite;
     }
 .neon-red {
-        border-color: #ff0040;
-        background: rgba(255, 0, 64, 0.1);
-        box-shadow: 0 0 20px #ff0040, 0 0 40px #ff0040, inset 0 0 20px rgba(255, 0, 64, 0.2);
-        animation: flash-red 1s infinite;
+        border-color: #f87171;
+        background: rgba(248, 113, 113, 0.08);
+        box-shadow: 0 0 15px rgba(248, 113, 113, 0.4), inset 0 0 15px rgba(248, 113, 113, 0.1);
+        animation: flash-soft 1.5s ease-in-out infinite;
     }
 
-    @keyframes flicker-green {
-        0%, 100% { opacity: 1; box-shadow: 0 0 20px #00ff88, 0 0 40px #00ff88; }
-        50% { opacity: 0.9; box-shadow: 0 0 30px #00ff88, 0 0 60px #00ff88; }
+    @keyframes glow-purple {
+        0%, 100% { box-shadow: 0 0 15px rgba(167, 139, 250, 0.4), inset 0 0 15px rgba(167, 139, 250, 0.1); }
+        50% { box-shadow: 0 0 25px rgba(167, 139, 250, 0.6), inset 0 0 20px rgba(167, 139, 250, 0.15); }
     }
-    @keyframes pulse-yellow {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.02); }
+    @keyframes pulse-soft {
+        0%, 100% { transform: scale(1); opacity: 0.95; }
+        50% { transform: scale(1.01); opacity: 1; }
     }
-    @keyframes flash-red {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
+    @keyframes flash-soft {
+        0%, 100% { opacity: 0.95; }
+        50% { opacity: 0.85; }
     }
 
 .score-text {
-        font-family: 'Orbitron', sans-serif; font-size: 100px; font-weight: 900;
-        color: #FFFFFF; text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
-        margin: 0; letter-spacing: 5px;
+        font-family: 'Orbitron', sans-serif; font-size: 90px; font-weight: 900;
+        color: #FFFFFF; text-shadow: 0 0 15px rgba(255,255,255,0.5);
+        margin: 0; letter-spacing: 3px;
     }
 .title-text {
-        font-family: 'Orbitron', sans-serif; font-size: 60px; font-weight: 900;
-        color: #FFFFFF; margin: 20px 0; text-shadow: 0 0 20px currentColor;
+        font-family: 'Orbitron', sans-serif; font-size: 55px; font-weight: 900;
+        color: #FFFFFF; margin: 15px 0; text-shadow: 0 0 15px rgba(255,255,255,0.5);
     }
 
 .metric-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        border: 2px solid #00ff88; padding: 20px; border-radius: 15px;
-        text-align: center; box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        background: rgba(26, 26, 46, 0.6); backdrop-filter: blur(10px);
+        border: 2px solid #8b5cf6; padding: 20px; border-radius: 15px;
+        text-align: center; box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
     }
 
 .metric-card-red {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        border: 2px solid #ff0040; padding: 20px; border-radius: 15px;
-        text-align: center; box-shadow: 0 0 15px rgba(255, 0, 64, 0.3);
+        background: rgba(26, 26, 46, 0.6); backdrop-filter: blur(10px);
+        border: 2px solid #f87171; padding: 20px; border-radius: 15px;
+        text-align: center; box-shadow: 0 0 20px rgba(248, 113, 113, 0.2);
     }
 
 .reason-card {
-        background: #1a1a2e; border-left: 4px solid #00ff88; padding: 20px; margin: 15px 0;
-        border-radius: 10px; font-size: 18px; color: #FFFFFF;
-        box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2);
+        background: rgba(26, 26, 46, 0.7); backdrop-filter: blur(5px);
+        border-left: 4px solid #a78bfa; padding: 20px; margin: 15px 0;
+        border-radius: 12px; font-size: 18px; color: #F5F5FF;
+        box-shadow: 0 4px 20px rgba(167, 139, 250, 0.15);
     }
 .reason-card-red {
-        background: #1a1a2e; border-left: 4px solid #ff0040; padding: 20px; margin: 15px 0;
-        border-radius: 10px; font-size: 18px; color: #FFFFFF;
-        box-shadow: 0 4px 15px rgba(255, 0, 64, 0.2);
+        background: rgba(26, 26, 46, 0.7); backdrop-filter: blur(5px);
+        border-left: 4px solid #f87171; padding: 20px; margin: 15px 0;
+        border-radius: 12px; font-size: 18px; color: #F5F5FF;
+        box-shadow: 0 4px 20px rgba(248, 113, 113, 0.15);
     }
 
-    h1, h2, h3, h4 {color: #00ff88!important; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px #00ff88;}
-  .st-emotion-cache-16txtl3,.st-emotion-cache-1y4p8pa {color: #FFFFFF;}
+    h1, h2, h3, h4 {
+        color: #E0E0FF!important; font-family: 'Orbitron', sans-serif;
+        text-shadow: 0 0 10px rgba(224, 224, 255, 0.3);
+    }
+.st-emotion-cache-16txtl3,.st-emotion-cache-1y4p8pa {color: #F0F0FF!important;}
+.st-emotion-cache-1xarl3l {color: #F0F0FF!important;} /* st.metric文字 */
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; font-size: 70px; color: #00ff88; text-shadow: 0 0 30px #00ff88;'>💎 台股霓虹燈號</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #888; font-size: 20px;'>黑底霓虹版 | 五項分析+K線+回測 | 瞎趴到爆</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; font-size: 65px; color: #E0E0FF; text-shadow: 0 0 25px rgba(224, 224, 255, 0.5);'>💜 台股紫光燈號</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #a78bfa; font-size: 18px;'>柔光紫調版 | 五項分析+K線+回測 | 護眼不刺眼</p>", unsafe_allow_html=True)
 
 stock = st.text_input("", "2330", placeholder="輸入代號", label_visibility="collapsed")
 
-if st.button("🔥 開始掃描", use_container_width=True, type="primary"):
+if st.button("✨ 紫光掃描", use_container_width=True, type="primary"):
 
-    with st.spinner("⚡ 霓虹燈號掃描中..."):
+    with st.spinner("🌌 紫光能量掃描中..."):
         try:
             ticker = f"{stock}.TW" if not stock.endswith('.TW') else stock
             df = yf.download(ticker, period="2y", progress=False)
@@ -263,28 +270,28 @@ if st.button("🔥 開始掃描", use_container_width=True, type="primary"):
     門檻 = 60 if 是ETF else 70
     if 總分 >= 門檻:
         燈號 = "green"
-        燈號字 = "🟢 綠燈"
+        燈號字 = "💜 紫光"
         結論 = "值得買" if not 年線上方 else "閉眼買入"
         值得買 = "是"
     elif 總分 >= 40:
         燈號 = "yellow"
-        燈號字 = "🟡 黃燈"
+        燈號字 = "💛 黃光"
         結論 = "再等等"
         值得買 = "否"
     else:
         燈號 = "red"
-        燈號字 = "🔴 紅燈"
+        燈號字 = "❤️ 紅光"
         結論 = "千萬別買"
         值得買 = "否"
 
-    # --- 顯示霓虹燈號 ---
+    # --- 顯示紫光燈號 ---
     st.markdown("---")
     st.markdown(f"""
     <div class="neon-box neon-{燈號}">
         <p class="score-text">{總分}</p>
         <p class="title-text">{燈號字}</p>
-        <p style="font-size: 36px; color: white; margin: 0; font-family: 'Orbitron', sans-serif;">{結論}</p>
-        <p style="font-size: 24px; color: #00ff88; margin-top: 20px;">值不值得買：{值得買}</p>
+        <p style="font-size: 36px; color: #FFFFFF; margin: 0; font-family: 'Orbitron', sans-serif;">{結論}</p>
+        <p style="font-size: 24px; color: #a78bfa; margin-top: 20px;">值不值得買：{值得買}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -366,36 +373,36 @@ if st.button("🔥 開始掃描", use_container_width=True, type="primary"):
     col4.metric("⚡ 值不值得買", 值得買)
 
     st.line_chart(df[['策略淨值', '買入持有']].rename(columns={
-        '策略淨值': '🔵 照燈號操作',
+        '策略淨值': '💜 照燈號操作',
         '買入持有': '⚪ 無腦買入持有'
     }), height=450)
 
 else:
     st.markdown("---")
-    st.info("👆 打股票代號，按按鈕。瞎趴霓虹燈+五項分析+K線+回測一次給你。")
+    st.info("👆 打股票代號，按按鈕。紫光買，黃光等，紅光跑。瞎趴霓虹燈+五項分析+K線+回測一次給你。")
 
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; border-radius: 20px; text-align: center; color: white; box-shadow: 0 0 30px #00ff88;">
-            <h2 style="font-family: 'Orbitron', sans-serif;">🟢 綠燈</h2>
-            <p style="font-size: 24px;"><b>閉眼買</b></p>
-            <p>大多頭or滿分</p>
+        <div style="background: rgba(167, 139, 250, 0.15); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; text-align: center; color: white; border: 2px solid #a78bfa; box-shadow: 0 0 30px rgba(167, 139, 250, 0.4);">
+            <h2 style="font-family: 'Orbitron', sans-serif; color: #a78bfa;">💜 紫光</h2>
+            <p style="font-size: 24px; color: #FFFFFF;"><b>閉眼買</b></p>
+            <p style="color: #E0E0FF;">大多頭or滿分</p>
         </div>
         """, unsafe_allow_html=True)
     with col2:
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); padding: 30px; border-radius: 20px; text-align: center; color: white; box-shadow: 0 0 30px #ffff00;">
-            <h2 style="font-family: 'Orbitron', sans-serif;">🟡 黃燈</h2>
-            <p style="font-size: 24px;"><b>再等等</b></p>
-            <p>分數不夠</p>
+        <div style="background: rgba(251, 191, 36, 0.15); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; text-align: center; color: white; border: 2px solid #fbbf24; box-shadow: 0 0 30px rgba(251, 191, 36, 0.4);">
+            <h2 style="font-family: 'Orbitron', sans-serif; color: #fbbf24;">💛 黃光</h2>
+            <p style="font-size: 24px; color: #FFFFFF;"><b>再等等</b></p>
+            <p style="color: #E0E0FF;">分數不夠</p>
         </div>
         """, unsafe_allow_html=True)
     with col3:
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); padding: 30px; border-radius: 20px; text-align: center; color: white; box-shadow: 0 0 30px #ff0040;">
-            <h2 style="font-family: 'Orbitron', sans-serif;">🔴 紅燈</h2>
-            <p style="font-size: 24px;"><b>別碰</b></p>
-            <p>下跌趨勢</p>
+        <div style="background: rgba(248, 113, 113, 0.15); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; text-align: center; color: white; border: 2px solid #f87171; box-shadow: 0 0 30px rgba(248, 113, 113, 0.4);">
+            <h2 style="font-family: 'Orbitron', sans-serif; color: #f87171;">❤️ 紅光</h2>
+            <p style="font-size: 24px; color: #FFFFFF;"><b>別碰</b></p>
+            <p style="color: #E0E0FF;">下跌趨勢</p>
         </div>
         """, unsafe_allow_html=True)
