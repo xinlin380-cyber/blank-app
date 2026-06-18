@@ -5,7 +5,7 @@ import numpy as np
 
 st.set_page_config(page_title="台股智能診斷 Pro", page_icon="📈", layout="wide")
 st.title("📈 台股智能診斷 Pro")
-st.caption("L7.1 牛熊修復版 | 個股70分 ETF60分 | 大多頭自動買入持有")
+st.caption("L7.2 最終修復版 | 修復牛熊回傳Bug | 台積電大多頭不再踏空")
 
 stock = st.text_input("輸入台股代號", "2330", help="個股：2330｜ETF：0050、006208、00878")
 col1, col2 = st.columns([1, 1])
@@ -26,25 +26,21 @@ def get_stock_data(ticker, period="2y"):
     except: return None
 
 def calculate_indicators(df):
-    # 1. RSI
     delta = df['Close'].diff()
     gain = delta.where(delta > 0, 0).rolling(14).mean()
     loss = -delta.where(delta < 0, 0).rolling(14).mean()
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
 
-    # 2. 成交量
     df['Volume_MA'] = df['Volume'].rolling(20).mean()
     df['Volume_Ratio'] = df['Volume'] / df['Volume_MA']
 
-    # 3. MACD
     ema12 = df['Close'].ewm(span=12).mean()
     ema26 = df['Close'].ewm(span=26).mean()
     df['MACD'] = ema12 - ema26
     df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
     df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
 
-    # 4. 布林通道 + 均線
     df['MA20'] = df['Close'].rolling(20).mean()
     df['MA60'] = df['Close'].rolling(60).mean()
     df['MA250'] = df['Close'].rolling(250).mean()
@@ -58,11 +54,10 @@ def is_etf(ticker):
     return ticker.replace('.TW', '').startswith('00')
 
 def detect_bull_market(df):
-    """L7.1 牛熊判斷修復版：股價 > 年線 * 1.05 = 大多頭"""
+    """L7.2 牛熊判斷：股價 > 年線 * 1.05 = 大多頭"""
     if len(df) < 250: return False
     ma250 = df['MA250'].iloc[-1]
     price = df['Close'].iloc[-1]
-    # 只要股價在年線之上5%，就算大多頭，避免年線走平誤判
     return price > ma250 * 1.05
 
 def get_score(df, ticker):
@@ -72,12 +67,12 @@ def get_score(df, ticker):
     bull_market = detect_bull_market(df)
     etf_mode = is_etf(ticker)
 
-    # 大多頭模式：100分強制買入持有
+    # 大多頭模式：強制100分，etf_mode照樣回傳
     if bull_market:
         details['牛熊判斷'] = f"股價{latest['Close']:.0f} > 年線{latest['MA250']:.0f}*1.05 | 大多頭"
-        return 100, details, True
+        return 100, details, bull_market, etf_mode # 修復：回傳4個值
 
-    # 1. RSI 20分
+    # 正常計分邏輯
     rsi = latest['RSI']
     if rsi < 30: rsi_score = 20
     elif rsi < 50: rsi_score = 15
@@ -86,7 +81,6 @@ def get_score(df, ticker):
     score += rsi_score
     details['RSI'] = f"{rsi:.1f} | {rsi_score}分"
 
-    # 2. 成交量 20分
     vol_ratio = latest['Volume_Ratio']
     if vol_ratio > 1.5: vol_score = 20
     elif vol_ratio > 1.0: vol_score = 15
@@ -95,7 +89,6 @@ def get_score(df, ticker):
     score += vol_score
     details['成交量'] = f"{vol_ratio:.1f}x | {vol_score}分"
 
-    # 3. MACD 30分
     macd_hist = latest['MACD_Hist']
     macd = latest['MACD']
     if macd_hist > 0 and macd > 0: macd_score = 30
@@ -105,7 +98,6 @@ def get_score(df, ticker):
     score += macd_score
     details['MACD'] = f"{macd_hist:.2f} | {macd_score}分"
 
-    # 4. 均線+布林 30分
     price = latest['Close']
     ma20, ma60 = latest['MA20'], latest['MA60']
     bb_upper, bb_lower = latest['BB_Upper'], latest['BB_Lower']
@@ -149,7 +141,7 @@ def backtest(df, ticker):
 
     scores = []
     for i in range(len(df)):
-        if i < 60: scores.append(50)
+        if i < 250: scores.append(50)
         else:
             temp_score, _, _, _ = get_score(df.iloc[:i+1], ticker)
             scores.append(temp_score)
@@ -244,5 +236,5 @@ if diagnose_btn or backtest_btn:
             st.dataframe(trade_df.tail(10), use_container_width=True)
 
 else:
-    st.info("👆 輸入代號後點擊按鈕開始。L7.1版：大多頭自動滿倉，解決台積電踏空問題")
-    st.caption("個股70分｜ETF60分｜股價>年線5% = 大多頭模式 | 00878存股無效")
+    st.info("👆 輸入代號後點擊按鈕開始。L7.2版：修復牛熊Bug，台積電100分大多頭")
+    st.caption("個股70分｜ETF60分｜股價>年線5% = 大多頭模式")
