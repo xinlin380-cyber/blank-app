@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="台股紫光燈號", page_icon="💜", layout="wide")
+st.set_page_config(page_title="台股分析", page_icon="💜", layout="wide")
 
 # --- L10.6 莫蘭迪高對比CSS ---
 st.markdown("""
@@ -122,8 +122,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; font-size: 65px; color: #FFFFFF; text-shadow: 0 0 25px rgba(255, 255, 255, 0.5);'>💜 台股紫光燈號</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #D4E8D4; font-size: 18px;'>莫蘭迪高對比版 | 五項分析+K線+回測 | 優雅且清楚</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; font-size: 65px; color: #FFFFFF; text-shadow: 0 0 25px rgba(255, 255, 255, 0.5);'>💜 台股分析</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #D4E8D4; font-size: 18px;'> 五項分析+K線+回測", unsafe_allow_html=True)
 
 # --- 熱門清單 ---
 st.markdown("<p style='text-align: center; color: #A0A0B8; font-size: 16px; margin-top: 20px;'>🔥 熱門追蹤</p>", unsafe_allow_html=True)
@@ -148,13 +148,13 @@ if 'stock_input' not in st.session_state:
 
 stock = st.text_input("", value=st.session_state.stock_input, placeholder="輸入代號或點上方熱門", label_visibility="collapsed", key="input_box")
 
-if st.button("✨ 紫光掃描", use_container_width=True, type="primary") or stock:
+if st.button("✨ 掃描", use_container_width=True, type="primary") or stock:
 
     if not stock:
         st.warning("👆 請輸入代號或點選熱門標籤")
         st.stop()
 
-    with st.spinner("🌌 紫光能量掃描中..."):
+    with st.spinner("🌌 掃描中..."):
         try:
             ticker = f"{stock}.TW" if not stock.endswith('.TW') else stock
             df = yf.download(ticker, period="2y", progress=False)
