@@ -40,7 +40,7 @@ st.markdown("""
 .positive { color: #22c55e!important; font-weight: 700; }
 .negative { color: #ef4444!important; font-weight: 700; }
 .neutral { color: #facc15!important; font-weight: 700; }
-    h1, h2, h3, h4 { color: #ffffff!important; }
+h1, h2, h3, h4 { color: #ffffff!important; }
 .stTextInput > div > div > input {
         background-color: #1e293b; color: #ffffff;
         border: 1px solid #475569; font-size: 1.1rem;
@@ -49,42 +49,20 @@ st.markdown("""
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: white; font-weight: 700; border: none; font-size: 1.1rem;
     }
-.score-badge {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-weight: 800;
-    font-size: 1.5rem;
-    color: white;
-}
-.score-high { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
-.score-mid { background: linear-gradient(135deg, #facc15 0%, #d97706 100%); }
-.score-low { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
+.score-box {
+        background: #1e293b; border: 2px solid #475569;
+        padding: 2rem; border-radius: 1rem; text-align: center;
+    }
+.score-num { font-size: 4rem; font-weight: 900; line-height: 1; }
+.score-label { font-size: 1.2rem; font-weight: 600; margin-top: 0.5rem; }
+.score-high { border-color: #22c55e; color: #22c55e; }
+.score-mid { border-color: #facc15; color: #facc15; }
+.score-low { border-color: #ef4444; color: #ef4444; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("                                     
 st.markdown("# 📊 台股智能診斷系統 Pro")
-st.markdown("<p style='color:                                                                                                                                 
-
-col1, col2 = st.columns([3, 1])
-with col1:
-    code = st.text_input("輸入台股代號", value="2330", label_visibility="collapsed", placeholder="例如: 2360、0050、2330")
-with col2:
-    run = st.button("🚀 開始診斷", use_container_width=True, type="primary")
-
-@st.cache_data(ttl=300)
-def get_stock_data(ticker, period="6mo"):
-    try:
-        stock = yf.Ticker(f"{ticker}.TW")
-        hist = stock.history(period=period)
-        info = stock.info
-        return hist, info
-    except:
-        return None, None
-
-def calculate_rsi(data, period=14):
-    delta = data['#cbd5e1; font-size: 1.1rem; margin-bottom: 2rem;'>五項技術分析 + 智能診斷 | 即時看盤</p>", unsafe_allow_html=True)
+st.markdown("<p style='color: #cbd5e1; font-size: 1.1rem; margin-bottom: 2rem;'>五項技術分析 + 智能診斷評分 | 即時看盤</p>", unsafe_allow_html=True)
 
 col1, col2 = st.columns([3, 1])
 with col1:
@@ -111,7 +89,6 @@ def calculate_rsi(data, period=14):
     return rsi
 
 def calculate_macd(data):
-    exp1 = data['calculate_macd(data):
     exp1 = data['Close'].ewm(span=12, adjust=False).mean()
     exp2 = data['Close'].ewm(span=26, adjust=False).mean()
     macd = exp1 - exp2
@@ -120,7 +97,6 @@ def calculate_macd(data):
     return macd, signal, hist
 
 def calculate_bollinger(data, period=20):
-    ma = data['calculate_bollinger(data, period=20):
     ma = data['Close'].rolling(period).mean()
     std = data['Close'].rolling(period).std()
     upper = ma + 2 * std
@@ -151,8 +127,6 @@ if run and code:
             rsi = rsi_series.iloc[-1]
             macd, signal, hist_macd = calculate_macd(hist)
 
-                             
-            ma5 = hist['# 均線 + 布林
             ma5 = hist['Close'].rolling(5).mean().iloc[-1]
             ma20 = hist['Close'].rolling(20).mean().iloc[-1]
             ma60 = hist['Close'].rolling(60).mean().iloc[-1]
@@ -165,19 +139,50 @@ if run and code:
             bb_position = (current_price - bb_lower) / (bb_upper - bb_lower) * 100 if bb_upper!= bb_lower else 50
             bb_text = "上軌" if bb_position > 80 else "下軌" if bb_position < 20 else "中軌"
 
-            st.markdown("                             
-            col1, col2, col3, col4, col5 = st.columns(5)
+            # ========== 評分系統 ==========
+            score = 0
+            # RSI評分 0-20分
+            if rsi < 30: score += 20
+            elif rsi < 40: score += 15
+            elif rsi < 60: score += 10
+            elif rsi < 70: score += 5
 
-            with col1:
-                color_class = "### 📈 五項技術診斷")
+            # MACD評分 0-20分
+            if hist_macd.iloc[-1] > 0 and macd.iloc[-1] > signal.iloc[-1]: score += 20
+            elif hist_macd.iloc[-1] > 0: score += 10
+
+            # 量能評分 0-20分
+            if volume_ratio > 1.5: score += 20
+            elif volume_ratio > 1.0: score += 15
+            elif volume_ratio > 0.8: score += 10
+            else: score += 5
+
+            # 均線評分 0-20分
+            if ma_trend == "多頭": score += 20
+            elif ma_trend == "糾結": score += 10
+
+            # 布林評分 0-20分
+            if 20 < bb_position < 80: score += 20
+            elif bb_position < 20: score += 15
+            else: score += 5
+
+            score_class = "score-high" if score >= 70 else "score-mid" if score >= 40 else "score-low"
+            score_text = "強勢買進" if score >= 80 else "偏多觀察" if score >= 60 else "中性觀望" if score >= 40 else "偏空小心" if score >= 20 else "空頭風險"
+
+            st.markdown("### 🎯 診斷總評分")
+            st.markdown(f"""
+            <div class="score-box {score_class}">
+                <div class="score-num">{score}</div>
+                <div class="score-label">{score_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("### 📈 五項技術診斷")
             col1, col2, col3, col4, col5 = st.columns(5)
 
             with col1:
                 color_class = "positive" if change >= 0 else "negative"
-                st.markdown(f                                                                                                                                                                                                                                                                                                                                 , unsafe_allow_html=True)
-
-            with col2:
-                rsi_color = """"
+                st.markdown(f"""
                 <div class="metric-card">
                     <div class="card-title">目前股價</div>
                     <div class="card-value">${current_price:.2f}</div>
@@ -188,16 +193,99 @@ if run and code:
             with col2:
                 rsi_color = "negative" if rsi > 70 else "positive" if rsi < 30 else "neutral"
                 rsi_text = "超買" if rsi > 70 else "超賣" if rsi < 30 else "中性"
-                st.markdown(f                                                                                                                                                                                                                                                                                          , unsafe_allow_html=True)
-
-            with col3:
-                vol_color = """"
+                st.markdown(f"""
                 <div class="metric-card">
                     <div class="card-title">RSI 指標</div>
                     <div class="card-value {rsi_color}">{rsi:.1f}</div>
-                    <div class="card-delta">{rsi_text}</div>
+                    <div class="card-delta">{rsi_text} | {20 if rsi<30 else 15 if rsi<40 else 10 if rsi<60 else 5 if rsi<70 else 0}分</div>
                 </div>
                 """, unsafe_allow_html=True)
 
             with col3:
-                vol_color = "positive" if volume_ratio > 1.5 else "negative" if volume
+                vol_color = "positive" if volume_ratio > 1.5 else "negative" if volume_ratio < 0.5 else "neutral"
+                vol_text = "爆量" if volume_ratio > 1.5 else "量縮" if volume_ratio < 0.5 else "均量"
+                vol_score = 20 if volume_ratio > 1.5 else 15 if volume_ratio > 1.0 else 10 if volume_ratio > 0.8 else 5
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="card-title">成交量</div>
+                    <div class="card-value {vol_color}">{volume_ratio:.1f}x</div>
+                    <div class="card-delta">{vol_text} | {vol_score}分</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col4:
+                macd_color = "positive" if hist_macd.iloc[-1] > 0 else "negative"
+                macd_text = "多頭" if hist_macd.iloc[-1] > 0 else "空頭"
+                macd_score = 20 if hist_macd.iloc[-1] > 0 and macd.iloc[-1] > signal.iloc[-1] else 10 if hist_macd.iloc[-1] > 0 else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="card-title">MACD</div>
+                    <div class="card-value {macd_color}">{hist_macd.iloc[-1]:.2f}</div>
+                    <div class="card-delta">{macd_text} | {macd_score}分</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col5:
+                ma_score = 20 if ma_trend == "多頭" else 10 if ma_trend == "糾結" else 0
+                bb_score = 20 if 20 < bb_position < 80 else 15 if bb_position < 20 else 5
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="card-title">均線+布林</div>
+                    <div class="card-value {ma_color}">{ma_trend}</div>
+                    <div class="card-delta">布林{bb_text} | {ma_score+bb_score}分</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            if not is_etf:
+                st.markdown("### 📊 技術線圖")
+                fig = make_subplots(
+                    rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03,
+                    row_heights=[0.7, 0.15, 0.15],
+                    subplot_titles=('K線圖 + MA均線 + 布林通道', '成交量', 'MACD')
+                )
+                fig.add_trace(go.Candlestick(
+                    x=hist.index, open=hist['Open'], high=hist['High'],
+                    low=hist['Low'], close=hist['Close'], name='K線',
+                    increasing_line_color='#22c55e', decreasing_line_color='#ef4444'
+                ), row=1, col=1)
+
+                ma5_series = hist['Close'].rolling(5).mean()
+                ma20_series = hist['Close'].rolling(20).mean()
+                ma60_series = hist['Close'].rolling(60).mean()
+                fig.add_trace(go.Scatter(x=hist.index, y=ma5_series, name='MA5', line=dict(color='#fbbf24', width=1.5)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=ma20_series, name='MA20', line=dict(color='#a78bfa', width=1.5)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=ma60_series, name='MA60', line=dict(color='#60a5fa', width=1.5)), row=1, col=1)
+
+                bb_upper_s, bb_mid_s, bb_lower_s = calculate_bollinger(hist)
+                fig.add_trace(go.Scatter(x=hist.index, y=bb_upper_s, name='布林上軌', line=dict(color='#64748b', width=1, dash='dot')), row=1, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=bb_mid_s, name='布林中軌', line=dict(color='#64748b', width=1, dash='dot')), row=1, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=bb_lower_s, name='布林下軌', line=dict(color='#64748b', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(100,116,139,0.1)'), row=1, col=1)
+
+                colors = ['#22c55e' if hist['Close'].iloc[i] >= hist['Open'].iloc[i] else '#ef4444' for i in range(len(hist))]
+                fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], name='成交量', marker_color=colors), row=2, col=1)
+
+                fig.add_trace(go.Bar(x=hist.index, y=hist_macd, name='MACD柱', marker_color='#64748b'), row=3, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=macd, name='DIF', line=dict(color='#3b82f6', width=2)), row=3, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=signal, name='DEA', line=dict(color='#f59e0b', width=2)), row=3, col=1)
+
+                fig.update_layout(
+                    template='plotly_dark', height=1000, showlegend=True,
+                    xaxis_rangeslider_visible=False, paper_bgcolor='#0f172a',
+                    plot_bgcolor='#1e293b', font=dict(color='#f8fafc', size=12),
+                    hovermode='x unified'
+                )
+                fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor='#334155')
+                fig.update_yaxes(showgrid=True, gridwidth=0.5, gridcolor='#334155')
+
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("💡 ETF 模式：專注基本指標，不顯示技術線圖")
+else:
+    st.info("👆 輸入台股代號，點擊「開始診斷」查看即時分析")
+    st.markdown("### 🔥 熱門標的")
+    cols = st.columns(6)
+    hot_stocks = ["2330", "2454", "2317", "0050", "00878", "00929"]
+    for i, stock in enumerate(hot_stocks):
+        if cols[i].button(stock, key=f"hot_{stock}", use_container_width=True):
+            st.session_state.code = stock
+            st.rerun()
