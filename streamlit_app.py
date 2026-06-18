@@ -10,12 +10,13 @@ st.title("台股技術分析 - 智能評分")
 
 if st.button("開始分析", type="primary"):
     try:
-        # 判斷是ETF還是個股
-        etf清單 = ['0050', '0056', '00878', '006208', '00692', '00713', '00919', '00929']
+        etf清單 = ['0050', '0056', '00878', '006208', '00692', '00713', '00919', '00929', '00940']
         是ETF = 代號 in etf清單
-        
+
         股票代號 = f"{代號}.TW"
-        data = yf.download(股票代號, period="6mo", interval="1d", progress=False, auto_adjust=True)
+        # ETF抓長一點，不然MA120算不出來
+        抓取期間 = "1y" if 是ETF else "6mo"
+        data = yf.download(股票代號, period=抓取期間, interval="1d", progress=False, auto_adjust=True)
 
         if data.empty:
             st.error("抓不到資料，請確認代號正確")
@@ -24,7 +25,7 @@ if st.button("開始分析", type="primary"):
         開盤 = data['Open'].squeeze()
         收盤 = data['Close'].squeeze()
         最高 = data['High'].squeeze()
-        最低 = data['Low'].squeeze() 
+        最低 = data['Low'].squeeze()
         成交量 = data['Volume'].squeeze()
 
         plot_df = pd.DataFrame({
@@ -32,17 +33,17 @@ if st.button("開始分析", type="primary"):
             'Close': 收盤, 'Volume': 成交量
         }, index=data.index)
 
-        # 技術指標
-        plot_df['MA5'] = 收盤.rolling(5).mean()
-        plot_df['MA20'] = 收盤.rolling(20).mean()
-        plot_df['MA60'] = 收盤.rolling(60).mean()
-        plot_df['MA120'] = 收盤.rolling(120).mean()
+        # 修復：min_periods=1 有多少算多少，避免NaN
+        plot_df['MA5'] = 收盤.rolling(5, min_periods=1).mean()
+        plot_df['MA20'] = 收盤.rolling(20, min_periods=1).mean()
+        plot_df['MA60'] = 收盤.rolling(60, min_periods=1).mean()
+        plot_df['MA120'] = 收盤.rolling(120, min_periods=1).mean()
 
         delta = 收盤.diff()
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
-        avg_gain = gain.rolling(14).mean()
-        avg_loss = loss.rolling(14).mean()
+        avg_gain = gain.rolling(14, min_periods=1).mean()
+        avg_loss = loss.rolling(14, min_periods=1).mean()
         rs = avg_gain / avg_loss
         plot_df['RSI'] = 100 - (100 / (1 + rs))
 
@@ -68,68 +69,66 @@ if st.button("開始分析", type="primary"):
         # 智能評分
         st.subheader("五項技術評分")
         評分 = {}
-        
+
         if 是ETF:
-            # ETF評分邏輯：適合存股
-            # 1. 長期趨勢：MA120斜率
-            ma120_斜率 = (plot_df['MA120'].iloc[-1] - plot_df['MA120'].iloc[-20]) / plot_df['MA120'].iloc[-20] * 100
+            # ETF用1年資料，MA120才穩
+            ma120 = plot_df['MA120'].iloc[-1]
+            ma60 = plot_df['MA60'].iloc[-1]
+            ma120_20天前 = plot_df['MA120'].iloc[-20] if len(plot_df) >= 20 else plot_df['MA120'].iloc[0]
+
+            ma120_斜率 = (ma120 - ma120_20天前) / ma120_20天前 * 100
             評分['長期趨勢'] = 20 if ma120_斜率 > 0 else 0
-            
-            # 2. 乖離率：負乖離才便宜
-            乖離率 = (最新價 / plot_df['MA120'].iloc[-1] - 1) * 100
+
+            乖離率 = (最新價 / ma120 - 1) * 100
             評分['乖離率'] = 20 if 乖離率 < -5 else 10 if 乖離率 < 0 else 0
-            
-            # 3. 站上季線
-            評分['季線'] = 20 if 最新價 > plot_df['MA60'].iloc[-1] else 0
-            
-            # 4. RSI超賣
+
+            評分['季線'] = 20 if 最新價 > ma60 else 0
+
             rsi = plot_df['RSI'].iloc[-1]
             評分['動能'] = 20 if rsi < 40 else 10 if rsi < 50 else 0
-            
-            # 5. 量縮價穩：沒爆量下跌就是好事
-            量能比 = 成交量.iloc[-1] / 成交量.rolling(20).mean().iloc[-1]
+
+            量能比 = 成交量.iloc[-1] / 成交量.rolling(20, min_periods=1).mean().iloc[-1]
             評分['籌碼安定'] = 20 if 量能比 < 1.2 and 最新價 >= 昨收價 else 10 if 量能比 < 1.5 else 0
-            
+
             說明 = [
                 f"MA120斜率 {ma120_斜率:.2f}%",
                 f"乖離MA120 {乖離率:.2f}%",
-                f"收盤 {最新價:.0f} vs MA60 {plot_df['MA60'].iloc[-1]:.0f}",
+                f"收盤 {最新價:.0f} vs MA60 {ma60:.0f}",
                 f"RSI {rsi:.1f} 越低越好",
                 f"量能比 {量能比:.2f}倍，縮量佳"
             ]
         else:
-            # 個股評分邏輯：適合波段
-            ma20_斜率 = (plot_df['MA20'].iloc[-1] - plot_df['MA20'].iloc[-5]) / plot_df['MA20'].iloc[-5] * 100
+            ma20 = plot_df['MA20'].iloc[-1]
+            ma20_5天前 = plot_df['MA20'].iloc[-5] if len(plot_df) >= 5 else plot_df['MA20'].iloc[0]
+
+            ma20_斜率 = (ma20 - ma20_5天前) / ma20_5天前 * 100
             評分['趨勢'] = 20 if ma20_斜率 > 1 else 10 if ma20_斜率 > 0 else 0
 
-            量能比 = 成交量.iloc[-1] / 成交量.rolling(20).mean().iloc[-1]
+            量能比 = 成交量.iloc[-1] / 成交量.rolling(20, min_periods=1).mean().iloc[-1]
             評分['量能'] = 20 if 量能比 > 1.5 and 最新價 > 昨收價 else 10 if 量能比 > 1 else 0
 
-            評分['均線'] = 20 if 最新價 > plot_df['MA20'].iloc[-1] else 0
+            評分['均線'] = 20 if 最新價 > ma20 else 0
 
             rsi = plot_df['RSI'].iloc[-1]
             評分['動能'] = 20 if 50 < rsi < 70 else 10 if 40 < rsi <= 50 else 0
 
-            近20高 = 最高.rolling(20).max().iloc[-2]
+            近20高 = 最高.rolling(20, min_periods=1).max().iloc[-2]
             評分['支撐壓力'] = 20 if 最新價 > 近20高 else 0
-            
+
             說明 = [
                 f"MA20斜率 {ma20_斜率:.2f}%",
                 f"量能比 {量能比:.2f}倍",
-                f"收盤 {最新價:.0f} vs MA20 {plot_df['MA20'].iloc[-1]:.0f}",
+                f"收盤 {最新價:.0f} vs MA20 {ma20:.0f}",
                 f"RSI {rsi:.1f}",
                 f"收盤 {最新價:.0f} vs 20日高 {近20高:.0f}"
             ]
 
         總分 = sum(評分.values())
         評分表 = pd.DataFrame({
-            '項目': 評分.keys(),
-            '得分': 評分.values(),
-            '說明': 說明
+            '項目': 評分.keys(), '得分': 評分.values(), '說明': 說明
         })
         st.dataframe(評分表, hide_index=True, use_container_width=True)
 
-        # 判斷結果也分流
         if 是ETF:
             if 總分 >= 60:
                 st.success(f"總分: {總分} / 100 - 適合分批存股，長期持有")
@@ -147,4 +146,3 @@ if st.button("開始分析", type="primary"):
 
     except Exception as e:
         st.error(f"發生錯誤: {e}")
-        st.info("可能代號錯誤或資料抓取失敗，請重試")
