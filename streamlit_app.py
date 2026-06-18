@@ -11,22 +11,33 @@ st.title("台股技術分析 - 五項評分")
 if st.button("開始分析", type="primary"):
     try:
         股票代號 = f"{代號}.TW"
-        data = yf.download(股票代號, period="6mo", interval="1d", progress=False)
+        # 修復1: 加 auto_adjust=True 避免多層欄位
+        data = yf.download(股票代號, period="6mo", interval="1d", progress=False, auto_adjust=True)
 
         if data.empty:
             st.error("抓不到資料，請確認代號正確")
             st.stop()
 
-        # 修復：台股會回傳DataFrame，用squeeze壓成Series
+        # 修復2: 全部欄位都要squeeze，包含Open
+        開盤 = data['Open'].squeeze()
         收盤 = data['Close'].squeeze()
         最高 = data['High'].squeeze()
         最低 = data['Low'].squeeze() 
         成交量 = data['Volume'].squeeze()
 
+        # 修復3: 組回去給mplfinance用的DataFrame
+        plot_df = pd.DataFrame({
+            'Open': 開盤,
+            'High': 最高,
+            'Low': 最低,
+            'Close': 收盤,
+            'Volume': 成交量
+        }, index=data.index)
+
         # 計算技術指標
-        data['MA5'] = 收盤.rolling(5).mean()
-        data['MA20'] = 收盤.rolling(20).mean()
-        data['MA60'] = 收盤.rolling(60).mean()
+        plot_df['MA5'] = 收盤.rolling(5).mean()
+        plot_df['MA20'] = 收盤.rolling(20).mean()
+        plot_df['MA60'] = 收盤.rolling(60).mean()
 
         delta = 收盤.diff()
         gain = delta.where(delta > 0, 0)
@@ -34,7 +45,7 @@ if st.button("開始分析", type="primary"):
         avg_gain = gain.rolling(14).mean()
         avg_loss = loss.rolling(14).mean()
         rs = avg_gain / avg_loss
-        data['RSI'] = 100 - (100 / (1 + rs))
+        plot_df['RSI'] = 100 - (100 / (1 + rs))
 
         最新價 = float(收盤.iloc[-1])
         昨收價 = float(收盤.iloc[-2])
@@ -43,12 +54,12 @@ if st.button("開始分析", type="primary"):
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("最新收盤", f"{最新價:.2f}")
         col2.metric("日漲跌幅", f"{((最新價/昨收價-1)*100):.2f}%")
-        col3.metric("RSI(14)", f"{data['RSI'].iloc[-1]:.1f}")
+        col3.metric("RSI(14)", f"{plot_df['RSI'].iloc[-1]:.1f}")
         col4.metric("成交量", f"{成交量.iloc[-1]/1000:.0f}張")
 
         # 畫K線圖
         st.subheader("K線圖 + MA5/MA20/MA60")
-        plot_data = data.tail(120).copy()
+        plot_data = plot_df.tail(120).copy()
         fig, axes = mpf.plot(plot_data, type='candle', style='yahoo',
                              mav=(5,20,60), volume=True,
                              figsize=(12,6), returnfig=True)
@@ -59,7 +70,7 @@ if st.button("開始分析", type="primary"):
         評分 = {}
 
         # 1. 趨勢：MA20斜率
-        ma20_斜率 = (data['MA20'].iloc[-1] - data['MA20'].iloc[-5]) / data['MA20'].iloc[-5] * 100
+        ma20_斜率 = (plot_df['MA20'].iloc[-1] - plot_df['MA20'].iloc[-5]) / plot_df['MA20'].iloc[-5] * 100
         評分['趨勢'] = 20 if ma20_斜率 > 1 else 10 if ma20_斜率 > 0 else 0
 
         # 2. 量能：放量突破
@@ -67,10 +78,10 @@ if st.button("開始分析", type="primary"):
         評分['量能'] = 20 if 量能比 > 1.5 and 最新價 > 昨收價 else 10 if 量能比 > 1 else 0
 
         # 3. 均線：站上MA20
-        評分['均線'] = 20 if 最新價 > data['MA20'].iloc[-1] else 0
+        評分['均線'] = 20 if 最新價 > plot_df['MA20'].iloc[-1] else 0
 
         # 4. 動能：RSI
-        rsi = data['RSI'].iloc[-1]
+        rsi = plot_df['RSI'].iloc[-1]
         評分['動能'] = 20 if 50 < rsi < 70 else 10 if 40 < rsi <= 50 else 0
 
         # 5. 支撐壓力：突破近20日高
@@ -86,7 +97,7 @@ if st.button("開始分析", type="primary"):
             '說明': [
                 f"MA20斜率 {ma20_斜率:.2f}%",
                 f"量能比 {量能比:.2f}倍",
-                f"收盤 {最新價:.0f} vs MA20 {data['MA20'].iloc[-1]:.0f}",
+                f"收盤 {最新價:.0f} vs MA20 {plot_df['MA20'].iloc[-1]:.0f}",
                 f"RSI {rsi:.1f}",
                 f"收盤 {最新價:.0f} vs 20日高 {近20高:.0f}"
             ]
