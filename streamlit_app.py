@@ -68,10 +68,10 @@ def get_score(df, ticker):
     etf_mode = is_etf(ticker)
 
     # Debug資訊直接塞進details
-    details['【Debug】股價'] = f"{price:.0f}"
-    details['【Debug】年線MA250'] = f"{ma250:.0f}"
-    details['【Debug】年線*1.05'] = f"{ma250*1.05:.0f}"
-    details['【Debug】是否大多頭'] = f"{bull_market}"
+    details['股價'] = f"{price:.0f}"
+    details['年線MA250'] = f"{ma250:.0f}"
+    details['年線*1.05'] = f"{ma250*1.05:.0f}"
+    details['是否大多頭'] = f"{bull_market}"
 
     if bull_market:
         details['牛熊判斷'] = f"股價{price:.0f} > 年線{ma250:.0f}*1.05 | 大多頭"
