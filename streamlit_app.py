@@ -35,32 +35,16 @@ st.markdown("""
         border-color: #D4E8D4;
         background: rgba(26, 26, 42, 0.85);
         box-shadow: 0 0 20px rgba(212, 232, 212, 0.35), inset 0 0 20px rgba(212, 232, 212, 0.08);
-        animation: glow-soft-green 3s ease-in-out infinite;
     }
 .neon-yellow {
         border-color: #E8D4A1;
         background: rgba(26, 26, 42, 0.85);
         box-shadow: 0 0 20px rgba(232, 212, 161, 0.35), inset 0 0 20px rgba(232, 212, 161, 0.08);
-        animation: pulse-soft-yellow 2s ease-in-out infinite;
     }
 .neon-red {
         border-color: #E8A1A1;
         background: rgba(26, 26, 42, 0.85);
         box-shadow: 0 0 20px rgba(232, 161, 161, 0.35), inset 0 0 20px rgba(232, 161, 161, 0.08);
-        animation: flash-soft-red 1.5s ease-in-out infinite;
-    }
-
-    @keyframes glow-soft-green {
-        0%, 100% { box-shadow: 0 0 20px rgba(212, 232, 212, 0.35), inset 0 0 20px rgba(212, 232, 212, 0.08); }
-        50% { box-shadow: 0 0 30px rgba(212, 232, 212, 0.5), inset 0 0 25px rgba(212, 232, 212, 0.12); }
-    }
-    @keyframes pulse-soft-yellow {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.01); opacity: 0.95; }
-    }
-    @keyframes flash-soft-red {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.9; }
     }
 
 .score-text {
@@ -100,18 +84,6 @@ st.markdown("""
         box-shadow: 0 4px 25px rgba(232, 161, 161, 0.15);
     }
 
-.hot-tag {
-        display: inline-block; background: #1A1A2A; border: 2px solid #D4E8D4;
-        color: #FFFFFF; padding: 8px 16px; margin: 5px; border-radius: 20px;
-        cursor: pointer; font-size: 16px; font-weight: bold;
-        text-shadow: 0 0 6px rgba(255,255,255,0.3);
-        transition: all 0.3s ease;
-    }
-.hot-tag:hover {
-        box-shadow: 0 0 15px rgba(212, 232, 212, 0.5);
-        background: rgba(212, 232, 212, 0.1);
-    }
-
     h1, h2, h3, h4 {
         color: #FFFFFF!important; font-family: 'Orbitron', sans-serif;
         text-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
@@ -122,8 +94,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; font-size: 65px; color: #FFFFFF; text-shadow: 0 0 25px rgba(255, 255, 255, 0.5);'>💜 台股分析</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #D4E8D4; font-size: 18px;'> 五項分析+K線+回測", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; font-size: 65px; color: #FFFFFF; text-shadow: 0 0 25px rgba(255, 255, 255, 0.5);'>💜 台股紅綠燈</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #D4E8D4; font-size: 18px;'>莫蘭迪高對比版 | 五項分析+K線+回測 | 優雅且清楚</p>", unsafe_allow_html=True)
 
 # --- 熱門清單 ---
 st.markdown("<p style='text-align: center; color: #A0A0B8; font-size: 16px; margin-top: 20px;'>🔥 熱門追蹤</p>", unsafe_allow_html=True)
@@ -148,7 +120,7 @@ if 'stock_input' not in st.session_state:
 
 stock = st.text_input("", value=st.session_state.stock_input, placeholder="輸入代號或點上方熱門", label_visibility="collapsed", key="input_box")
 
-if st.button("✨ 掃描", use_container_width=True, type="primary") or stock:
+if st.button("✨ 資訊掃描", use_container_width=True, type="primary") or stock:
 
     if not stock:
         st.warning("👆 請輸入代號或點選熱門標籤")
@@ -208,7 +180,6 @@ if st.button("✨ 掃描", use_container_width=True, type="primary") or stock:
     bb_lower = latest['BB_Lower']
 
     年線上方 = price > ma250 * 1.05
-    趨勢向上 = price > ma20 > ma60
     是ETF = stock.replace('.TW', '').startswith('00')
 
     # --- 五項打分 ---
@@ -388,7 +359,7 @@ if st.button("✨ 掃描", use_container_width=True, type="primary") or stock:
         prev_price = df['Close'].iloc[i-1]
         score = df['Score'].iloc[i]
 
-        if score == 100: # 大多頭滿倉
+        if score == 100:
             position = 1
         else:
             if position == 0 and score >= 門檻:
