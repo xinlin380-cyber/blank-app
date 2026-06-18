@@ -1,299 +1,250 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
 
-st.set_page_config(
-    page_title="台股智能診斷 Pro",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="台股智能診斷 Pro", page_icon="📈", layout="wide")
+st.title("📈 台股智能診斷 Pro")
+st.caption("L7 牛熊自動切換版 | 個股70分 ETF60分 | 大多頭自動關閉系統")
 
-st.markdown("""
-<style>
-    @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
-.stApp { background-color: #0f172a; }
-.metric-card {
-        background: #1e293b; border: 1px solid #475569; padding: 1.5rem;
-        border-radius: 0.75rem; transition: all 0.3s;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); height: 140px;
-    }
-.metric-card:hover {
-        transform: translateY(-4px); border-color: #3b82f6;
-        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);
-    }
-.card-title {
-        color: #f8fafc; font-size: 0.875rem; font-weight: 600;
-        margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;
-    }
-.card-value {
-        color: #ffffff; font-size: 2.25rem; font-weight: 800;
-        line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-.card-delta {
-        color: #e2e8f0; font-size: 0.8rem; margin-top: 0.5rem; font-weight: 500;
-    }
-.positive { color: #22c55e!important; font-weight: 700; }
-.negative { color: #ef4444!important; font-weight: 700; }
-.neutral { color: #facc15!important; font-weight: 700; }
-h1, h2, h3, h4 { color: #ffffff!important; }
-.stTextInput > div > div > input {
-        background-color: #1e293b; color: #ffffff;
-        border: 1px solid #475569; font-size: 1.1rem;
-    }
-.stButton > button {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: white; font-weight: 700; border: none; font-size: 1.1rem;
-    }
-.score-box {
-        background: #1e293b; border: 2px solid #475569;
-        padding: 2rem; border-radius: 1rem; text-align: center;
-    }
-.score-num { font-size: 4rem; font-weight: 900; line-height: 1; }
-.score-label { font-size: 1.2rem; font-weight: 600; margin-top: 0.5rem; }
-.score-high { border-color: #22c55e; color: #22c55e; }
-.score-mid { border-color: #facc15; color: #facc15; }
-.score-low { border-color: #ef4444; color: #ef4444; }
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("# 📊 台股智能診斷系統 Pro")
-st.markdown("<p style='color: #cbd5e1; font-size: 1.1rem; margin-bottom: 2rem;'>五項技術分析 + 智能診斷評分 + 回測驗證 | 個股ETF雙模式</p>", unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns([2, 1, 1])
+stock = st.text_input("輸入台股代號", "2330", help="個股：2330｜ETF：0050、006208、00878")
+col1, col2 = st.columns([1, 1])
 with col1:
-    code = st.text_input("輸入台股代號", value="2330", label_visibility="collapsed", placeholder="例如: 2360、0050、2330")
+    diagnose_btn = st.button("🚀 開始診斷", use_container_width=True)
 with col2:
-    run = st.button("🚀 開始診斷", use_container_width=True, type="primary")
-with col3:
-    backtest = st.button("📊 回測2年", use_container_width=True)
+    backtest_btn = st.button("📊 回測2年", use_container_width=True)
 
-@st.cache_data(ttl=300)
 def get_stock_data(ticker, period="2y"):
     try:
-        stock = yf.Ticker(f"{ticker}.TW")
-        hist = stock.history(period=period)
-        info = stock.info
-        return hist, info
-    except:
-        return None, None
+        if not ticker.endswith('.TW'):
+            ticker = f"{ticker}.TW"
+        df = yf.download(ticker, period=period, progress=False)
+        if df.empty: return None
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        return df.dropna()
+    except: return None
 
-def calculate_rsi(data, period=14):
-    delta = data['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+def calculate_indicators(df):
+    # 1. RSI
+    delta = df['Close'].diff()
+    gain = delta.where(delta > 0, 0).rolling(14).mean()
+    loss = -delta.where(delta < 0, 0).rolling(14).mean()
     rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+    df['RSI'] = 100 - (100 / (1 + rs))
 
-def calculate_macd(data):
-    exp1 = data['Close'].ewm(span=12, adjust=False).mean()
-    exp2 = data['Close'].ewm(span=26, adjust=False).mean()
-    macd = exp1 - exp2
-    signal = macd.ewm(span=9, adjust=False).mean()
-    hist = macd - signal
-    return macd, signal, hist
+    # 2. 成交量
+    df['Volume_MA'] = df['Volume'].rolling(20).mean()
+    df['Volume_Ratio'] = df['Volume'] / df['Volume_MA']
 
-def calculate_bollinger(data, period=20):
-    ma = data['Close'].rolling(period).mean()
-    std = data['Close'].rolling(period).std()
-    upper = ma + 2 * std
-    lower = ma - 2 * std
-    return upper, ma, lower
+    # 3. MACD
+    ema12 = df['Close'].ewm(span=12).mean()
+    ema26 = df['Close'].ewm(span=26).mean()
+    df['MACD'] = ema12 - ema26
+    df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
+    df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
 
-def calculate_score(row):
+    # 4. 布林通道
+    df['MA20'] = df['Close'].rolling(20).mean()
+    df['MA60'] = df['Close'].rolling(60).mean()
+    df['MA250'] = df['Close'].rolling(250).mean() # 年線判斷牛熊
+    std = df['Close'].rolling(20).std()
+    df['BB_Upper'] = df['MA20'] + 2 * std
+    df['BB_Lower'] = df['MA20'] - 2 * std
+
+    return df.dropna()
+
+def is_etf(ticker):
+    return ticker.replace('.TW', '').startswith('00')
+
+def detect_bull_market(df):
+    """牛熊判斷：站上年線且年線向上 = 大多頭"""
+    if len(df) < 250: return False
+    ma250 = df['MA250'].iloc[-1]
+    ma250_prev = df['MA250'].iloc[-20]
+    price = df['Close'].iloc[-1]
+    return price > ma250 and ma250 > ma250_prev
+
+def get_score(df, ticker):
+    latest = df.iloc[-1]
     score = 0
-    if row['rsi'] < 30: score += 20
-    elif row['rsi'] < 40: score += 15
-    elif row['rsi'] < 60: score += 10
-    elif row['rsi'] < 70: score += 5
-    if row['hist_macd'] > 0 and row['macd'] > row['signal']: score += 20
-    elif row['hist_macd'] > 0: score += 10
-    if row['volume_ratio'] > 1.5: score += 20
-    elif row['volume_ratio'] > 1.0: score += 15
-    elif row['volume_ratio'] > 0.8: score += 10
-    else: score += 5
-    if row['ma5'] > row['ma20'] > row['ma60']: score += 20
-    elif row['ma5'] > row['ma20'] or row['ma20'] > row['ma60']: score += 10
-    if 20 < row['bb_position'] < 80: score += 20
-    elif row['bb_position'] < 20: score += 15
-    else: score += 5
-    return score
+    details = {}
+    bull_market = detect_bull_market(df)
+    etf_mode = is_etf(ticker)
 
-if run or backtest:
-    with st.spinner('診斷中...'):
-        hist, info = get_stock_data(code)
-        hist = hist.dropna(subset=['Close', 'Volume'])
+    # 大多頭模式：直接滿分，強制買入持有
+    if bull_market:
+        return 100, {"牛熊判斷": "大多頭｜系統關閉｜無腦買入持有"}, True, True
 
-        if hist is None or hist.empty or len(hist) < 60:
-            st.error(f"❌ 抓不到 {code} 的有效資料，至少需要60天數據回測。")
+    # 1. RSI 20分
+    rsi = latest['RSI']
+    if rsi < 30: rsi_score = 20
+    elif rsi < 50: rsi_score = 15
+    elif rsi < 70: rsi_score = 10
+    else: rsi_score = 0
+    score += rsi_score
+    details['RSI'] = f"{rsi:.1f} | {rsi_score}分"
+
+    # 2. 成交量 20分
+    vol_ratio = latest['Volume_Ratio']
+    if vol_ratio > 1.5: vol_score = 20
+    elif vol_ratio > 1.0: vol_score = 15
+    elif vol_ratio > 0.8: vol_score = 10
+    else: vol_score = 0
+    score += vol_score
+    details['成交量'] = f"{vol_ratio:.1f}x | {vol_score}分"
+
+    # 3. MACD 30分
+    macd_hist = latest['MACD_Hist']
+    macd = latest['MACD']
+    if macd_hist > 0 and macd > 0: macd_score = 30
+    elif macd_hist > 0: macd_score = 20
+    elif macd > 0: macd_score = 10
+    else: macd_score = 0
+    score += macd_score
+    details['MACD'] = f"{macd_hist:.2f} | {macd_score}分"
+
+    # 4. 均線+布林 30分
+    price = latest['Close']
+    ma20, ma60 = latest['MA20'], latest['MA60']
+    bb_upper, bb_lower = latest['BB_Upper'], latest['BB_Lower']
+
+    if price > ma20 > ma60 and price > bb_upper: bb_score = 30
+    elif price > ma20 > ma60: bb_score = 25
+    elif price > ma20: bb_score = 15
+    elif price > bb_lower: bb_score = 10
+    else: bb_score = 0
+    score += bb_score
+    details['均線布林'] = f"價{price:.0f} MA20:{ma20:.0f} | {bb_score}分"
+
+    return score, details, bull_market, etf_mode
+
+def get_advice(score, bull_market, etf_mode):
+    if bull_market:
+        return "🚀 大多頭確認", "關閉技術分析，無腦買入持有。任何賣出都是錯的。"
+
+    if etf_mode: # ETF寬鬆模式
+        if score >= 60: return "💰 偏多買進", "ETF寬鬆模式：60分以上可進場，分批布局"
+        elif score >= 40: return "😐 中性觀望", "40-60分震盪區，等待表態"
+        else: return "⚠️ 偏空小心", "<40分轉弱，嚴控倉位"
+    else: # 個股嚴格模式
+        if score >= 70: return "💰 偏多買進", "個股嚴格模式：70分以上才進場，均線多頭+放量"
+        elif score >= 50: return "😐 中性觀望", "50-70分觀察區，等待突破"
+        else: return "⚠️ 偏空小心", "<50分轉弱，跌破MA20出場"
+
+def backtest(df, ticker):
+    bull_market = detect_bull_market(df)
+    etf_mode = is_etf(ticker)
+
+    # 大多頭：直接買入持有
+    if bull_market:
+        buy_threshold, sell_threshold = 0, -999
+        mode = "大多頭模式"
+    elif etf_mode:
+        buy_threshold, sell_threshold = 60, 30
+        mode = "ETF寬鬆"
+    else:
+        buy_threshold, sell_threshold = 70, 40
+        mode = "個股嚴格"
+
+    scores = []
+    for i in range(len(df)):
+        if i < 60: scores.append(50)
         else:
-            is_etf = info.get('quoteType') == 'ETF' or code.startswith('00')
-            buy_threshold = 60 if is_etf else 70
-            sell_threshold = 30 if is_etf else 40
+            temp_score, _, _, _ = get_score(df.iloc[:i+1], ticker)
+            scores.append(temp_score)
+    df['Score'] = scores
 
-            hist['rsi'] = calculate_rsi(hist)
-            hist['macd'], hist['signal'], hist['hist_macd'] = calculate_macd(hist)
-            hist['ma5'] = hist['Close'].rolling(5).mean()
-            hist['ma20'] = hist['Close'].rolling(20).mean()
-            hist['ma60'] = hist['Close'].rolling(60).mean()
-            hist['bb_upper'], hist['bb_mid'], hist['bb_lower'] = calculate_bollinger(hist)
-            hist['volume_ratio'] = hist['Volume'] / hist['Volume'].rolling(20).mean()
-            hist['bb_position'] = (hist['Close'] - hist['bb_lower']) / (hist['bb_upper'] - hist['bb_lower']) * 100
-            hist['score'] = hist.apply(calculate_score, axis=1)
+    position = 0
+    trades = []
+    equity = [1.0]
 
-            latest = hist.iloc[-1]
-            current_price = latest['Close']
-            prev_price = hist['Close'].iloc[-2]
-            change = current_price - prev_price
-            change_pct = (change / prev_price) * 100
+    for i in range(1, len(df)):
+        price = df['Close'].iloc[i]
+        prev_price = df['Close'].iloc[i-1]
+        score = df['Score'].iloc[i]
 
-            score = int(latest['score'])
-            score_class = "score-high" if score >= 70 else "score-mid" if score >= 40 else "score-low"
-            score_text = "強勢買進" if score >= 80 else "偏多觀察" if score >= 60 else "中性觀望" if score >= 40 else "偏空小心" if score >= 20 else "空頭風險"
+        # 大多頭永遠滿倉
+        if bull_market:
+            position = 1
+        else:
+            if position == 0 and score >= buy_threshold:
+                position = 1
+                trades.append({'date': df.index[i], 'action': '買', 'price': price, 'score': score})
+            elif position == 1 and score < sell_threshold:
+                position = 0
+                trades.append({'date': df.index[i], 'action': '賣', 'price': price, 'score': score})
 
-            st.markdown("### 🎯 診斷總評分")
-            st.markdown(f"""
-            <div class="score-box {score_class}">
-                <div class="score-num">{score}</div>
-                <div class="score-label">{score_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        ret = price / prev_price if position == 1 else 1.0
+        equity.append(equity[-1] * ret)
 
-            if not backtest:
-                st.markdown("### 📈 五項技術診斷")
-                col1, col2, col3, col4, col5 = st.columns(5)
+    df['Equity'] = equity
+    strategy_return = (equity[-1] - 1) * 100
+    buy_hold_return = (df['Close'].iloc[-1] / df['Close'].iloc[0] - 1) * 100
 
-                with col1:
-                    color_class = "positive" if change >= 0 else "negative"
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="card-title">目前股價</div>
-                        <div class="card-value">${current_price:.2f}</div>
-                        <div class="card-delta {color_class}">{change:+.2f} ({change_pct:+.2f}%)</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+    wins = sum(1 for i in range(1, len(trades), 2) if i < len(trades) and trades[i]['price'] > trades[i-1]['price'])
+    total_trades = len(trades) // 2
+    win_rate = wins / total_trades * 100 if total_trades > 0 else 0
 
-                with col2:
-                    rsi_color = "negative" if latest['rsi'] > 70 else "positive" if latest['rsi'] < 30 else "neutral"
-                    rsi_text = "超買" if latest['rsi'] > 70 else "超賣" if latest['rsi'] < 30 else "中性"
-                    rsi_score = 20 if latest['rsi']<30 else 15 if latest['rsi']<40 else 10 if latest['rsi']<60 else 5 if latest['rsi']<70 else 0
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="card-title">RSI 指標</div>
-                        <div class="card-value {rsi_color}">{latest['rsi']:.1f}</div>
-                        <div class="card-delta">{rsi_text} | {rsi_score}分</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+    peak = df['Equity'].cummax()
+    drawdown = (df['Equity'] - peak) / peak * 100
+    max_dd = drawdown.min()
 
-                with col3:
-                    vol_color = "positive" if latest['volume_ratio'] > 1.5 else "negative" if latest['volume_ratio'] < 0.5 else "neutral"
-                    vol_text = "爆量" if latest['volume_ratio'] > 1.5 else "量縮" if latest['volume_ratio'] < 0.5 else "均量"
-                    vol_score = 20 if latest['volume_ratio'] > 1.5 else 15 if latest['volume_ratio'] > 1.0 else 10 if latest['volume_ratio'] > 0.8 else 5
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="card-title">成交量</div>
-                        <div class="card-value {vol_color}">{latest['volume_ratio']:.1f}x</div>
-                        <div class="card-delta">{vol_text} | {vol_score}分</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+    return {
+        'mode': mode,
+        'strategy': strategy_return,
+        'buy_hold': buy_hold_return,
+        'win_rate': win_rate,
+        'max_dd': max_dd,
+        'trades': trades,
+        'df': df
+    }
 
-                with col4:
-                    macd_color = "positive" if latest['hist_macd'] > 0 else "negative"
-                    macd_text = "多頭" if latest['hist_macd'] > 0 else "空頭"
-                    macd_score = 20 if latest['hist_macd'] > 0 and latest['macd'] > latest['signal'] else 10 if latest['hist_macd'] > 0 else 0
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="card-title">MACD</div>
-                        <div class="card-value {macd_color}">{latest['hist_macd']:.2f}</div>
-                        <div class="card-delta">{macd_text} | {macd_score}分</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+if diagnose_btn or backtest_btn:
+    with st.spinner("載入數據中..."):
+        hist = get_stock_data(stock)
 
-                with col5:
-                    ma_trend = "多頭" if latest['ma5'] > latest['ma20'] > latest['ma60'] else "空頭" if latest['ma5'] < latest['ma20'] < latest['ma60'] else "糾結"
-                    ma_color = "positive" if ma_trend == "多頭" else "negative" if ma_trend == "空頭" else "neutral"
-                    ma_score = 20 if ma_trend == "多頭" else 10 if ma_trend == "糾結" else 0
-                    bb_score = 20 if 20 < latest['bb_position'] < 80 else 15 if latest['bb_position'] < 20 else 5
-                    bb_text = "上軌" if latest['bb_position'] > 80 else "下軌" if latest['bb_position'] < 20 else "中軌"
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="card-title">均線+布林</div>
-                        <div class="card-value {ma_color}">{ma_trend}</div>
-                        <div class="card-delta">布林{bb_text} | {ma_score+bb_score}分</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+    if hist is None or len(hist) < 250:
+        st.error("❌ 數據不足，需要250天以上數據判斷牛熊")
+        st.stop()
 
-                if not is_etf:
-                    st.markdown("### 📊 技術線圖")
-                    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.15, 0.15], subplot_titles=('K線圖 + MA均線 + 布林通道', '成交量', 'MACD'))
-                    fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], name='K線', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['ma5'], name='MA5', line=dict(color='#fbbf24', width=1.5)), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['ma20'], name='MA20', line=dict(color='#a78bfa', width=1.5)), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['ma60'], name='MA60', line=dict(color='#60a5fa', width=1.5)), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['bb_upper'], name='布林上軌', line=dict(color='#64748b', width=1, dash='dot')), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['bb_mid'], name='布林中軌', line=dict(color='#64748b', width=1, dash='dot')), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['bb_lower'], name='布林下軌', line=dict(color='#64748b', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(100,116,139,0.1)'), row=1, col=1)
-                    colors = ['#22c55e' if hist['Close'].iloc[i] >= hist['Open'].iloc[i] else '#ef4444' for i in range(len(hist))]
-                    fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], name='成交量', marker_color=colors), row=2, col=1)
-                    fig.add_trace(go.Bar(x=hist.index, y=hist['hist_macd'], name='MACD柱', marker_color='#64748b'), row=3, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['macd'], name='DIF', line=dict(color='#3b82f6', width=2)), row=3, col=1)
-                    fig.add_trace(go.Scatter(x=hist.index, y=hist['signal'], name='DEA', line=dict(color='#f59e0b', width=2)), row=3, col=1)
-                    fig.update_layout(template='plotly_dark', height=1000, showlegend=True, xaxis_rangeslider_visible=False, paper_bgcolor='#0f172a', plot_bgcolor='#1e293b', font=dict(color='#f8fafc', size=12), hovermode='x unified')
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("💡 ETF 模式：專注基本指標，不顯示技術線圖")
+    hist = calculate_indicators(hist)
+    score, details, bull_market, etf_mode = get_score(hist, stock)
+    advice, reason = get_advice(score, bull_market, etf_mode)
 
-            else:
-                st.markdown("### 📊 2年歷史回測報告")
-                st.markdown(f"**模式：{'ETF寬鬆' if is_etf else '個股嚴格'} | 買進 >{buy_threshold}分 | 賣出 <{sell_threshold}分**")
+    st.subheader("🎯 診斷總評分")
+    if bull_market:
+        st.success(f"### 100分\n### {advice}")
+        st.info("檢測到大多頭：股價 > 年線且年線上彎。系統自動關閉，改用買入持有策略")
+    else:
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1: st.metric("總分", f"{score}分", advice)
+        with col2: st.metric("模式", "ETF寬鬆" if etf_mode else "個股嚴格")
+        with col3: st.metric("牛熊", "震盪/空頭")
 
-                hist['position'] = 0
-                hist.loc[hist['score'] > buy_threshold, 'position'] = 1
-                hist.loc[hist['score'] < sell_threshold, 'position'] = -1
-                hist['position'] = hist['position'].replace(0, np.nan).ffill().fillna(0)
-                hist['returns'] = hist['Close'].pct_change()
-                hist['strategy'] = hist['position'].shift(1) * hist['returns']
-                hist['cumulative'] = (1 + hist['strategy']).cumprod()
-                hist['buy_hold'] = (1 + hist['returns']).cumprod()
+    with st.expander("📋 五項技術診斷"):
+        for k, v in details.items():
+            st.text(f"{k}: {v}")
+        st.info(f"**操作建議**: {reason}")
 
-                buy_signals = hist[(hist['position'] == 1) & (hist['position'].shift(1)!= 1)]
-                sell_signals = hist[(hist['position'] == -1) & (hist['position'].shift(1)!= -1)]
+    if backtest_btn:
+        st.subheader("📊 2年歷史回測報告")
+        result = backtest(hist, stock)
 
-                total_return = (hist['cumulative'].iloc[-1] - 1) * 100
-                buy_hold_return = (hist['buy_hold'].iloc[-1] - 1) * 100
-                win_days = len(hist[hist['strategy'] > 0])
-                trade_days = len(hist[hist['strategy']!= 0])
-                win_rate = win_days / trade_days * 100 if trade_days > 0 else 0
-                max_dd = (hist['cumulative'] / hist['cumulative'].cummax() - 1).min() * 100
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("模式", result['mode'])
+        col2.metric("策略報酬", f"{result['strategy']:.1f}%", f"{result['strategy']-result['buy_hold']:.1f}% vs 買入持有")
+        col3.metric("買入持有", f"{result['buy_hold']:.1f}%")
+        col4.metric("勝率", f"{result['win_rate']:.1f}%", f"最大回檔 {result['max_dd']:.1f}%")
 
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("策略報酬", f"{total_return:.1f}%", f"{total_return - buy_hold_return:.1f}% vs 買入持有")
-                col2.metric("買入持有", f"{buy_hold_return:.1f}%")
-                col3.metric("勝率", f"{win_rate:.1f}%")
-                col4.metric("最大回檔", f"{max_dd:.1f}%")
+        st.line_chart(result['df'][['Equity']].rename(columns={'Equity': '策略淨值'}))
 
-                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3], subplot_titles=('K線圖 + 買賣點', '策略vs買入持有'))
-                fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], name='K線', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'), row=1, col=1)
-                fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Low']*0.98, mode='markers', marker=dict(symbol='triangle-up', size=12, color='#22c55e'), name='買入'), row=1, col=1)
-                fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['High']*1.02, mode='markers', marker=dict(symbol='triangle-down', size=12, color='#ef4444'), name='賣出'), row=1, col=1)
-                fig.add_trace(go.Scatter(x=hist.index, y=hist['cumulative'], name='策略淨值', line=dict(color='#3b82f6', width=2)), row=2, col=1)
-                fig.add_trace(go.Scatter(x=hist.index, y=hist['buy_hold'], name='買入持有', line=dict(color='#64748b', width=2, dash='dot')), row=2, col=1)
-                fig.update_layout(template='plotly_dark', height=800, showlegend=True, xaxis_rangeslider_visible=False, paper_bgcolor='#0f172a', plot_bgcolor='#1e293b', font=dict(color='#f8fafc', size=12))
-                st.plotly_chart(fig, use_container_width=True)
-
-                st.info(f"💡 回測總結：過去2年共觸發 {len(buy_signals)} 次買入，{len(sell_signals)} 次賣出。總分>{buy_threshold}進場，<{sell_threshold}出場，策略報酬 {total_return:.1f}%")
+        if result['trades']:
+            st.caption(f"交易次數: {len(result['trades'])//2} 次")
+            trade_df = pd.DataFrame(result['trades'])
+            st.dataframe(trade_df.tail(10), use_container_width=True)
 
 else:
-    st.info("👆 輸入台股代號，點擊「開始診斷」查看即時分析，或「回測2年」驗證策略")
-    st.markdown("### 🔥 熱門標的")
-    cols = st.columns(6)
-    hot_stocks = ["2330", "2454", "2317", "0050", "00878", "00929"]
-    for i, stock in enumerate(hot_stocks):
-        if cols[i].button(stock, key=f"hot_{stock}", use_container_width=True):
-            st.session_state.code = stock
-            st.rerun()
+    st.info("👆 輸入代號後點擊按鈕開始。個股用70分，ETF用60分，大多頭自動滿倉")
+    st.caption("L7版：自動偵測牛熊市 | 00878存股無效 | 006208大多頭關系統 | 2330震盪盤才開系統")
