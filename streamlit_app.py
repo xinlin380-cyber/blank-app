@@ -14,17 +14,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== Pro 版 CSS - 高對比度 ==========
+# ========== Pro 版 CSS - 高對比度版 ==========
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
 
-   .stApp {
+  .stApp {
         background-color: #0f172a;
     }
 
-    /* 卡片底色亮一點 */
-   .metric-card {
+  .metric-card {
         background: #1e293b;
         border: 1px solid #475569;
         padding: 1.5rem;
@@ -32,14 +31,13 @@ st.markdown("""
         transition: all 0.3s;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
-   .metric-card:hover {
+  .metric-card:hover {
         transform: translateY(-4px);
         border-color: #3b82f6;
         box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);
     }
 
-    /* 標題字純白 */
-   .card-title {
+  .card-title {
         color: #f8fafc;
         font-size: 0.875rem;
         font-weight: 600;
@@ -48,8 +46,7 @@ st.markdown("""
         letter-spacing: 0.05em;
     }
 
-    /* 數字純白加粗加大 */
-   .card-value {
+  .card-value {
         color: #ffffff;
         font-size: 2.5rem;
         font-weight: 800;
@@ -57,33 +54,34 @@ st.markdown("""
         text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
 
-    /* 小字說明亮白 */
-   .card-delta {
+  .card-delta {
         color: #e2e8f0;
         font-size: 0.875rem;
         margin-top: 0.5rem;
         font-weight: 500;
     }
 
-   .positive { color: #22c55e!important; font-weight: 700; }
-   .negative { color: #ef4444!important; font-weight: 700; }
-   .neutral { color: #facc15!important; font-weight: 700; }
+  .positive { color: #22c55e!important; font-weight: 700; }
+  .negative { color: #ef4444!important; font-weight: 700; }
+  .neutral { color: #facc15!important; font-weight: 700; }
 
     h1, h2, h3, h4 {
         color: #ffffff!important;
     }
 
-   .stTextInput > div > div > input {
+  .stTextInput > div > div > input {
         background-color: #1e293b;
         color: #ffffff;
         border: 1px solid #475569;
+        font-size: 1.1rem;
     }
 
-   .stButton > button {
+  .stButton > button {
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: white;
         font-weight: 700;
         border: none;
+        font-size: 1.1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -95,11 +93,12 @@ st.markdown("<p style='color: #cbd5e1; font-size: 1.1rem; margin-bottom: 2rem;'>
 # ========== 輸入區 ==========
 col1, col2 = st.columns([3, 1])
 with col1:
-    code = st.text_input("輸入台股代號", value="2360", label_visibility="collapsed", placeholder="例如: 2360、0050、2330")
+    code = st.text_input("輸入台股代號", value="2330", label_visibility="collapsed", placeholder="例如: 2360、0050、2330")
 with col2:
     run = st.button("🚀 開始診斷", use_container_width=True, type="primary")
 
 # ========== 工具函數 ==========
+@st.cache_data(ttl=300)
 def get_stock_data(ticker, period="6mo"):
     try:
         stock = yf.Ticker(f"{ticker}.TW")
@@ -130,22 +129,26 @@ if run and code:
     with st.spinner('診斷中...'):
         hist, info = get_stock_data(code)
 
-        if hist is None or hist.empty:
-            st.error(f"❌ 找不到代號 {code}，請確認是否為正確台股代號")
+        # 防呆：檢查資料
+        if hist is None or hist.empty or len(hist) < 20:
+            st.error(f"❌ 抓不到 {code} 的資料，可能是代號錯誤、剛上市、或今日未交易。請換個代號試試。")
+            st.info("💡 建議試試：2330 台積電、0050 元大台灣50、2454 聯發科")
         else:
             # 判斷 ETF 或個股
             is_etf = info.get('quoteType') == 'ETF' or code.startswith('00')
 
-            current_price = hist['Close'][-1]
-            prev_price = hist['Close'][-2]
+            # 全部改用.iloc 避免 KeyError
+            current_price = hist['Close'].iloc[-1]
+            prev_price = hist['Close'].iloc[-2]
             change = current_price - prev_price
             change_pct = (change / prev_price) * 100
 
-            volume = hist['Volume'][-1]
-            avg_volume = hist['Volume'].rolling(20).mean()[-1]
+            volume = hist['Volume'].iloc[-1]
+            avg_volume = hist['Volume'].rolling(20).mean().iloc[-1]
             volume_ratio = volume / avg_volume if avg_volume > 0 else 0
 
-            rsi = calculate_rsi(hist)[-1]
+            rsi_series = calculate_rsi(hist)
+            rsi = rsi_series.iloc[-1]
             macd, signal, hist_macd = calculate_macd(hist)
 
             # ========== 卡片顯示 ==========
@@ -186,12 +189,12 @@ if run and code:
                 """, unsafe_allow_html=True)
 
             with col4:
-                macd_color = "positive" if hist_macd[-1] > 0 else "negative"
-                macd_text = "多頭" if hist_macd[-1] > 0 else "空頭"
+                macd_color = "positive" if hist_macd.iloc[-1] > 0 else "negative"
+                macd_text = "多頭" if hist_macd.iloc[-1] > 0 else "空頭"
                 st.markdown(f"""
                 <div class="metric-card">
                     <div class="card-title">MACD</div>
-                    <div class="card-value {macd_color}">{hist_macd[-1]:.2f}</div>
+                    <div class="card-value {macd_color}">{hist_macd.iloc[-1]:.2f}</div>
                     <div class="card-delta">{macd_text}訊號</div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -230,7 +233,7 @@ if run and code:
                 fig.add_trace(go.Scatter(x=hist.index, y=ma60, name='MA60', line=dict(color='#60a5fa', width=1)), row=1, col=1)
 
                 # 成交量
-                colors = ['#22c55e' if hist['Close'][i] >= hist['Open'][i] else '#ef4444' for i in range(len(hist))]
+                colors = ['#22c55e' if hist['Close'].iloc[i] >= hist['Open'].iloc[i] else '#ef4444' for i in range(len(hist))]
                 fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], name='成交量', marker_color=colors), row=2, col=1)
 
                 # MACD
@@ -268,9 +271,9 @@ if run and code:
             elif volume_ratio < 0.5:
                 conclusions.append("量能萎縮，市場觀望氣氛濃")
 
-            if hist_macd[-1] > 0 and macd[-1] > signal[-1]:
+            if hist_macd.iloc[-1] > 0 and macd.iloc[-1] > signal.iloc[-1]:
                 conclusions.append("MACD 多頭排列，趨勢偏強")
-            elif hist_macd[-1] < 0 and macd[-1] < signal[-1]:
+            elif hist_macd.iloc[-1] < 0 and macd.iloc[-1] < signal.iloc[-1]:
                 conclusions.append("MACD 空頭排列，趨勢偏弱")
 
             for c in conclusions:
@@ -283,4 +286,6 @@ else:
     cols = st.columns(6)
     hot_stocks = ["2330", "2454", "2317", "0050", "00878", "00929"]
     for i, stock in enumerate(hot_stocks):
-        cols[i].button(stock, key=f"hot_{stock}", use_container_width=True)
+        if cols[i].button(stock, key=f"hot_{stock}", use_container_width=True):
+            st.session_state.code = stock
+            st.rerun()
