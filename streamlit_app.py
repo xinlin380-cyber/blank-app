@@ -5,7 +5,7 @@ import numpy as np
 
 st.set_page_config(page_title="台股智能診斷 Pro", page_icon="📈", layout="wide")
 st.title("📈 台股智能診斷 Pro")
-st.caption("L7.2 最終修復版 | 修復牛熊回傳Bug | 台積電大多頭不再踏空")
+st.caption("L7.3 Debug版 | 強制顯示年線數值")
 
 stock = st.text_input("輸入台股代號", "2330", help="個股：2330｜ETF：0050、006208、00878")
 col1, col2 = st.columns([1, 1])
@@ -14,7 +14,7 @@ with col1:
 with col2:
     backtest_btn = st.button("📊 回測2年", use_container_width=True)
 
-def get_stock_data(ticker, period="2y"):
+def get_stock_data(ticker, period="3y"): # 改3年確保有250日
     try:
         if not ticker.endswith('.TW'):
             ticker = f"{ticker}.TW"
@@ -54,25 +54,29 @@ def is_etf(ticker):
     return ticker.replace('.TW', '').startswith('00')
 
 def detect_bull_market(df):
-    """L7.2 牛熊判斷：股價 > 年線 * 1.05 = 大多頭"""
-    if len(df) < 250: return False
+    if len(df) < 250: return False, 0, 0
     ma250 = df['MA250'].iloc[-1]
     price = df['Close'].iloc[-1]
-    return price > ma250 * 1.05
+    is_bull = price > ma250 * 1.05
+    return is_bull, price, ma250 # 回傳3個值用來debug
 
 def get_score(df, ticker):
     latest = df.iloc[-1]
     score = 0
     details = {}
-    bull_market = detect_bull_market(df)
+    bull_market, price, ma250 = detect_bull_market(df)
     etf_mode = is_etf(ticker)
 
-    # 大多頭模式：強制100分，etf_mode照樣回傳
-    if bull_market:
-        details['牛熊判斷'] = f"股價{latest['Close']:.0f} > 年線{latest['MA250']:.0f}*1.05 | 大多頭"
-        return 100, details, bull_market, etf_mode # 修復：回傳4個值
+    # Debug資訊直接塞進details
+    details['【Debug】股價'] = f"{price:.0f}"
+    details['【Debug】年線MA250'] = f"{ma250:.0f}"
+    details['【Debug】年線*1.05'] = f"{ma250*1.05:.0f}"
+    details['【Debug】是否大多頭'] = f"{bull_market}"
 
-    # 正常計分邏輯
+    if bull_market:
+        details['牛熊判斷'] = f"股價{price:.0f} > 年線{ma250:.0f}*1.05 | 大多頭"
+        return 100, details, bull_market, etf_mode
+
     rsi = latest['RSI']
     if rsi < 30: rsi_score = 20
     elif rsi < 50: rsi_score = 15
@@ -114,19 +118,19 @@ def get_score(df, ticker):
 
 def get_advice(score, bull_market, etf_mode):
     if bull_market:
-        return "🚀 大多頭確認", "系統關閉。股價 > 年線5% 以上，無腦買入持有，任何賣出都是錯的"
+        return "🚀 大多頭確認", "系統關閉。股價 > 年線5% 以上，無腦買入持有"
 
     if etf_mode:
-        if score >= 60: return "💰 偏多買進", "ETF寬鬆模式：60分以上可進場，分批布局"
-        elif score >= 40: return "😐 中性觀望", "40-60分震盪區，等待表態"
-        else: return "⚠️ 偏空小心", "<40分轉弱，嚴控倉位"
+        if score >= 60: return "💰 偏多買進", "ETF寬鬆模式：60分以上可進場"
+        elif score >= 40: return "😐 中性觀望", "40-60分震盪區"
+        else: return "⚠️ 偏空小心", "<40分轉弱"
     else:
-        if score >= 70: return "💰 偏多買進", "個股嚴格模式：70分以上才進場，均線多頭+放量"
-        elif score >= 50: return "😐 中性觀望", "50-70分觀察區，等待突破"
-        else: return "⚠️ 偏空小心", "<50分轉弱，跌破MA20出場"
+        if score >= 70: return "💰 偏多買進", "個股嚴格模式：70分以上才進場"
+        elif score >= 50: return "😐 中性觀望", "50-70分觀察區"
+        else: return "⚠️ 偏空小心", "<50分轉弱"
 
 def backtest(df, ticker):
-    bull_market = detect_bull_market(df)
+    bull_market, _, _ = detect_bull_market(df)
     etf_mode = is_etf(ticker)
 
     if bull_market:
@@ -157,7 +161,7 @@ def backtest(df, ticker):
         score = df['Score'].iloc[i]
 
         if bull_market:
-            position = 1
+            position = 1 # 大多頭強制滿倉
         else:
             if position == 0 and score >= buy_threshold:
                 position = 1
@@ -197,7 +201,7 @@ if diagnose_btn or backtest_btn:
         hist = get_stock_data(stock)
 
     if hist is None or len(hist) < 250:
-        st.error("❌ 數據不足，需要250天以上數據判斷牛熊")
+        st.error(f"❌ 數據不足，只有{len(hist) if hist is not None else 0}天，需要250天以上")
         st.stop()
 
     hist = calculate_indicators(hist)
@@ -213,7 +217,7 @@ if diagnose_btn or backtest_btn:
     if bull_market:
         st.success("🚀 檢測到大多頭：股價 > 年線5% 以上。系統自動關閉，報酬 = 買入持有")
 
-    with st.expander("📋 五項技術診斷"):
+    with st.expander("📋 五項技術診斷 + Debug"):
         for k, v in details.items():
             st.text(f"{k}: {v}")
         st.info(f"**操作建議**: {reason}")
@@ -236,5 +240,5 @@ if diagnose_btn or backtest_btn:
             st.dataframe(trade_df.tail(10), use_container_width=True)
 
 else:
-    st.info("👆 輸入代號後點擊按鈕開始。L7.2版：修復牛熊Bug，台積電100分大多頭")
+    st.info("👆 輸入代號後點擊按鈕開始。L7.3版：Debug年線數值，抓出牛熊誤判原因")
     st.caption("個股70分｜ETF60分｜股價>年線5% = 大多頭模式")
