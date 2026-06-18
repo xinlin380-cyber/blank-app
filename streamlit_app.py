@@ -62,7 +62,7 @@ h1, h2, h3, h4 { color: #ffffff!important; }
 """, unsafe_allow_html=True)
 
 st.markdown("# 📊 台股智能診斷系統 Pro")
-st.markdown("<p style='color: #cbd5e1; font-size: 1.1rem; margin-bottom: 2rem;'>五項技術分析 + 智能診斷評分 + 回測驗證 | 即時看盤</p>", unsafe_allow_html=True)
+st.markdown("<p style='color: #cbd5e1; font-size: 1.1rem; margin-bottom: 2rem;'>五項技術分析 + 智能診斷評分 + 回測驗證 | 個股ETF雙模式</p>", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([2, 1, 1])
 with col1:
@@ -133,6 +133,8 @@ if run or backtest:
             st.error(f"❌ 抓不到 {code} 的有效資料，至少需要60天數據回測。")
         else:
             is_etf = info.get('quoteType') == 'ETF' or code.startswith('00')
+            buy_threshold = 60 if is_etf else 70
+            sell_threshold = 30 if is_etf else 40
 
             hist['rsi'] = calculate_rsi(hist)
             hist['macd'], hist['signal'], hist['hist_macd'] = calculate_macd(hist)
@@ -248,10 +250,11 @@ if run or backtest:
 
             else:
                 st.markdown("### 📊 2年歷史回測報告")
+                st.markdown(f"**模式：{'ETF寬鬆' if is_etf else '個股嚴格'} | 買進 >{buy_threshold}分 | 賣出 <{sell_threshold}分**")
+
                 hist['position'] = 0
-                hist.loc[hist['score'] > 70, 'position'] = 1
-                hist.loc[hist['score'] < 40, 'position'] = -1
-                # 修正：先把0變NaN再ffill
+                hist.loc[hist['score'] > buy_threshold, 'position'] = 1
+                hist.loc[hist['score'] < sell_threshold, 'position'] = -1
                 hist['position'] = hist['position'].replace(0, np.nan).ffill().fillna(0)
                 hist['returns'] = hist['Close'].pct_change()
                 hist['strategy'] = hist['position'].shift(1) * hist['returns']
@@ -283,7 +286,7 @@ if run or backtest:
                 fig.update_layout(template='plotly_dark', height=800, showlegend=True, xaxis_rangeslider_visible=False, paper_bgcolor='#0f172a', plot_bgcolor='#1e293b', font=dict(color='#f8fafc', size=12))
                 st.plotly_chart(fig, use_container_width=True)
 
-                st.info(f"💡 回測總結：過去2年共觸發 {len(buy_signals)} 次買入，{len(sell_signals)} 次賣出。總分>70進場，<40出場，策略報酬 {total_return:.1f}%")
+                st.info(f"💡 回測總結：過去2年共觸發 {len(buy_signals)} 次買入，{len(sell_signals)} 次賣出。總分>{buy_threshold}進場，<{sell_threshold}出場，策略報酬 {total_return:.1f}%")
 
 else:
     st.info("👆 輸入台股代號，點擊「開始診斷」查看即時分析，或「回測2年」驗證策略")
