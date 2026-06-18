@@ -11,21 +11,20 @@ st.title("台股技術分析 - 五項評分")
 if st.button("開始分析", type="primary"):
     try:
         股票代號 = f"{代號}.TW"
-        # 修復1: 加 auto_adjust=True 避免多層欄位
         data = yf.download(股票代號, period="6mo", interval="1d", progress=False, auto_adjust=True)
 
         if data.empty:
             st.error("抓不到資料，請確認代號正確")
             st.stop()
 
-        # 修復2: 全部欄位都要squeeze，包含Open
+        # 全部欄位都要squeeze
         開盤 = data['Open'].squeeze()
         收盤 = data['Close'].squeeze()
         最高 = data['High'].squeeze()
         最低 = data['Low'].squeeze() 
         成交量 = data['Volume'].squeeze()
 
-        # 修復3: 組回去給mplfinance用的DataFrame
+        # 組回去給mplfinance用的DataFrame
         plot_df = pd.DataFrame({
             'Open': 開盤,
             'High': 最高,
@@ -47,8 +46,10 @@ if st.button("開始分析", type="primary"):
         rs = avg_gain / avg_loss
         plot_df['RSI'] = 100 - (100 / (1 + rs))
 
-        最新價 = float(收盤.iloc[-1])
-        昨收價 = float(收盤.iloc[-2])
+        # 修復：跳過NaN取最後有效價格
+        收盤_乾淨 = 收盤.dropna()
+        最新價 = float(收盤_乾淨.iloc[-1])
+        昨收價 = float(收盤_乾淨.iloc[-2])
 
         # 顯示基本資訊
         col1, col2, col3, col4 = st.columns(4)
@@ -69,28 +70,22 @@ if st.button("開始分析", type="primary"):
         st.subheader("五項技術評分")
         評分 = {}
 
-        # 1. 趨勢：MA20斜率
         ma20_斜率 = (plot_df['MA20'].iloc[-1] - plot_df['MA20'].iloc[-5]) / plot_df['MA20'].iloc[-5] * 100
         評分['趨勢'] = 20 if ma20_斜率 > 1 else 10 if ma20_斜率 > 0 else 0
 
-        # 2. 量能：放量突破
         量能比 = 成交量.iloc[-1] / 成交量.rolling(20).mean().iloc[-1]
         評分['量能'] = 20 if 量能比 > 1.5 and 最新價 > 昨收價 else 10 if 量能比 > 1 else 0
 
-        # 3. 均線：站上MA20
         評分['均線'] = 20 if 最新價 > plot_df['MA20'].iloc[-1] else 0
 
-        # 4. 動能：RSI
         rsi = plot_df['RSI'].iloc[-1]
         評分['動能'] = 20 if 50 < rsi < 70 else 10 if 40 < rsi <= 50 else 0
 
-        # 5. 支撐壓力：突破近20日高
         近20高 = 最高.rolling(20).max().iloc[-2]
         評分['支撐壓力'] = 20 if 最新價 > 近20高 else 0
 
         總分 = sum(評分.values())
 
-        # 顯示評分表
         評分表 = pd.DataFrame({
             '項目': 評分.keys(),
             '得分': 評分.values(),
@@ -104,7 +99,6 @@ if st.button("開始分析", type="primary"):
         })
         st.dataframe(評分表, hide_index=True, use_container_width=True)
 
-        # 總分判斷
         if 總分 >= 60:
             st.success(f"總分: {總分} / 100 - 偏多格局，可留意買點")
         elif 總分 >= 40:
