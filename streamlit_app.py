@@ -1,244 +1,223 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import numpy as np
 
-st.set_page_config(page_title="台股智能診斷 Pro", page_icon="📈", layout="wide")
-st.title("📈 台股智能診斷 Pro")
-st.caption("L7.3 Debug版 | 強制顯示年線數值")
+st.set_page_config(page_title="台股紅綠燈", page_icon="🚦", layout="centered")
 
-stock = st.text_input("輸入台股代號", "2330", help="個股：2330｜ETF：0050、006208、00878")
-col1, col2 = st.columns([1, 1])
-with col1:
-    diagnose_btn = st.button("🚀 開始診斷", use_container_width=True)
-with col2:
-    backtest_btn = st.button("📊 回測2年", use_container_width=True)
-
-def get_stock_data(ticker, period="3y"): # 改3年確保有250日
-    try:
-        if not ticker.endswith('.TW'):
-            ticker = f"{ticker}.TW"
-        df = yf.download(ticker, period=period, progress=False)
-        if df.empty: return None
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        return df.dropna()
-    except: return None
-
-def calculate_indicators(df):
-    delta = df['Close'].diff()
-    gain = delta.where(delta > 0, 0).rolling(14).mean()
-    loss = -delta.where(delta < 0, 0).rolling(14).mean()
-    rs = gain / loss
-    df['RSI'] = 100 - (100 / (1 + rs))
-
-    df['Volume_MA'] = df['Volume'].rolling(20).mean()
-    df['Volume_Ratio'] = df['Volume'] / df['Volume_MA']
-
-    ema12 = df['Close'].ewm(span=12).mean()
-    ema26 = df['Close'].ewm(span=26).mean()
-    df['MACD'] = ema12 - ema26
-    df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
-    df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
-
-    df['MA20'] = df['Close'].rolling(20).mean()
-    df['MA60'] = df['Close'].rolling(60).mean()
-    df['MA250'] = df['Close'].rolling(250).mean()
-    std = df['Close'].rolling(20).std()
-    df['BB_Upper'] = df['MA20'] + 2 * std
-    df['BB_Lower'] = df['MA20'] - 2 * std
-
-    return df.dropna()
-
-def is_etf(ticker):
-    return ticker.replace('.TW', '').startswith('00')
-
-def detect_bull_market(df):
-    if len(df) < 250: return False, 0, 0
-    ma250 = df['MA250'].iloc[-1]
-    price = df['Close'].iloc[-1]
-    is_bull = price > ma250 * 1.05
-    return is_bull, price, ma250 # 回傳3個值用來debug
-
-def get_score(df, ticker):
-    latest = df.iloc[-1]
-    score = 0
-    details = {}
-    bull_market, price, ma250 = detect_bull_market(df)
-    etf_mode = is_etf(ticker)
-
-    # Debug資訊直接塞進details
-    details['股價'] = f"{price:.0f}"
-    details['年線MA250'] = f"{ma250:.0f}"
-    details['年線*1.05'] = f"{ma250*1.05:.0f}"
-    details['是否大多頭'] = f"{bull_market}"
-
-    if bull_market:
-        details['牛熊判斷'] = f"股價{price:.0f} > 年線{ma250:.0f}*1.05 | 大多頭"
-        return 100, details, bull_market, etf_mode
-
-    rsi = latest['RSI']
-    if rsi < 30: rsi_score = 20
-    elif rsi < 50: rsi_score = 15
-    elif rsi < 70: rsi_score = 10
-    else: rsi_score = 0
-    score += rsi_score
-    details['RSI'] = f"{rsi:.1f} | {rsi_score}分"
-
-    vol_ratio = latest['Volume_Ratio']
-    if vol_ratio > 1.5: vol_score = 20
-    elif vol_ratio > 1.0: vol_score = 15
-    elif vol_ratio > 0.8: vol_score = 10
-    else: vol_score = 0
-    score += vol_score
-    details['成交量'] = f"{vol_ratio:.1f}x | {vol_score}分"
-
-    macd_hist = latest['MACD_Hist']
-    macd = latest['MACD']
-    if macd_hist > 0 and macd > 0: macd_score = 30
-    elif macd_hist > 0: macd_score = 20
-    elif macd > 0: macd_score = 10
-    else: macd_score = 0
-    score += macd_score
-    details['MACD'] = f"{macd_hist:.2f} | {macd_score}分"
-
-    price = latest['Close']
-    ma20, ma60 = latest['MA20'], latest['MA60']
-    bb_upper, bb_lower = latest['BB_Upper'], latest['BB_Lower']
-
-    if price > ma20 > ma60 and price > bb_upper: bb_score = 30
-    elif price > ma20 > ma60: bb_score = 25
-    elif price > ma20: bb_score = 15
-    elif price > bb_lower: bb_score = 10
-    else: bb_score = 0
-    score += bb_score
-    details['均線布林'] = f"價{price:.0f} MA20:{ma20:.0f} | {bb_score}分"
-
-    return score, details, bull_market, etf_mode
-
-def get_advice(score, bull_market, etf_mode):
-    if bull_market:
-        return "🚀 大多頭確認", "系統關閉。股價 > 年線5% 以上，無腦買入持有"
-
-    if etf_mode:
-        if score >= 60: return "💰 偏多買進", "ETF寬鬆模式：60分以上可進場"
-        elif score >= 40: return "😐 中性觀望", "40-60分震盪區"
-        else: return "⚠️ 偏空小心", "<40分轉弱"
-    else:
-        if score >= 70: return "💰 偏多買進", "個股嚴格模式：70分以上才進場"
-        elif score >= 50: return "😐 中性觀望", "50-70分觀察區"
-        else: return "⚠️ 偏空小心", "<50分轉弱"
-
-def backtest(df, ticker):
-    bull_market, _, _ = detect_bull_market(df)
-    etf_mode = is_etf(ticker)
-
-    if bull_market:
-        buy_threshold, sell_threshold = 0, -999
-        mode = "大多頭模式"
-    elif etf_mode:
-        buy_threshold, sell_threshold = 60, 30
-        mode = "ETF寬鬆"
-    else:
-        buy_threshold, sell_threshold = 70, 40
-        mode = "個股嚴格"
-
-    scores = []
-    for i in range(len(df)):
-        if i < 250: scores.append(50)
-        else:
-            temp_score, _, _, _ = get_score(df.iloc[:i+1], ticker)
-            scores.append(temp_score)
-    df['Score'] = scores
-
-    position = 0
-    trades = []
-    equity = [1.0]
-
-    for i in range(1, len(df)):
-        price = df['Close'].iloc[i]
-        prev_price = df['Close'].iloc[i-1]
-        score = df['Score'].iloc[i]
-
-        if bull_market:
-            position = 1 # 大多頭強制滿倉
-        else:
-            if position == 0 and score >= buy_threshold:
-                position = 1
-                trades.append({'date': df.index[i], 'action': '買', 'price': price, 'score': score})
-            elif position == 1 and score < sell_threshold:
-                position = 0
-                trades.append({'date': df.index[i], 'action': '賣', 'price': price, 'score': score})
-
-        ret = price / prev_price if position == 1 else 1.0
-        equity.append(equity[-1] * ret)
-
-    df['Equity'] = equity
-    df['BuyHold'] = df['Close'] / df['Close'].iloc[0]
-    strategy_return = (equity[-1] - 1) * 100
-    buy_hold_return = (df['Close'].iloc[-1] / df['Close'].iloc[0] - 1) * 100
-
-    wins = sum(1 for i in range(1, len(trades), 2) if i < len(trades) and trades[i]['price'] > trades[i-1]['price'])
-    total_trades = len(trades) // 2
-    win_rate = wins / total_trades * 100 if total_trades > 0 else 0
-
-    peak = df['Equity'].cummax()
-    drawdown = (df['Equity'] - peak) / peak * 100
-    max_dd = drawdown.min()
-
-    return {
-        'mode': mode,
-        'strategy': strategy_return,
-        'buy_hold': buy_hold_return,
-        'win_rate': win_rate,
-        'max_dd': max_dd,
-        'trades': trades,
-        'df': df
+# --- 酷炫CSS動畫 --- 
+st.markdown("""
+<style>
+   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700;900&display=swap');
+   
+   .main {font-family: 'Noto Sans TC', sans-serif;}
+   
+   .traffic-light {
+        padding: 40px;
+        border-radius: 25px;
+        text-align: center;
+        margin: 20px 0;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
+    
+   .green-light {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        animation: glow-green 2s ease-in-out infinite;
+    }
+    
+   .yellow-light {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+   .red-light {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        animation: flash 1s ease-in-out infinite;
+    }
+    
+    @keyframes glow-green {
+        0%, 100% { box-shadow: 0 0 20px #38ef7d, 0 0 40px #38ef7d; }
+        50% { box-shadow: 0 0 40px #38ef7d, 0 0 80px #38ef7d; }
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.03); }
+    }
+    
+    @keyframes flash {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    .score-text {
+        font-size: 80px;
+        font-weight: 900;
+        color: white;
+        text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        margin: 0;
+    }
+    
+    .title-text {
+        font-size: 48px;
+        font-weight: 900;
+        color: white;
+        margin: 10px 0;
+    }
+    
+    .reason-box {
+        background: #1e1e1e;
+        border-left: 5px solid #667eea;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        font-size: 18px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-if diagnose_btn or backtest_btn:
-    with st.spinner("載入數據中..."):
-        hist = get_stock_data(stock)
+st.markdown("<h1 style='text-align: center; font-size: 50px;'>🚦 台股紅綠燈</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #888; font-size: 18px;'>看燈號就知道能不能買，不用學技術分析</p>", unsafe_allow_html=True)
 
-    if hist is None or len(hist) < 250:
-        st.error(f"❌ 數據不足，只有{len(hist) if hist is not None else 0}天，需要250天以上")
-        st.stop()
+stock = st.text_input("", "2330", placeholder="輸入股票代號，例如 2330、0050、00878", label_visibility="collapsed")
 
-    hist = calculate_indicators(hist)
-    score, details, bull_market, etf_mode = get_score(hist, stock)
-    advice, reason = get_advice(score, bull_market, etf_mode)
+if st.button("🔍 查燈號", use_container_width=True, type="primary"):
 
-    st.subheader("🎯 診斷總評分")
-    col1, col2, col3 = st.columns(3)
-    with col1: st.metric("總分", f"{score}分", advice)
-    with col2: st.metric("模式", "ETF寬鬆" if etf_mode else "個股嚴格")
-    with col3: st.metric("牛熊", "大多頭" if bull_market else "震盪/空頭")
+    with st.spinner("🚀 正在讀取市場情緒..."):
+        try:
+            ticker = f"{stock}.TW" if not stock.endswith('.TW') else stock
+            df = yf.download(ticker, period="2y", progress=False)
+            if df.empty:
+                st.error("❌ 查無此股票")
+                st.stop()
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df = df.dropna()
+        except:
+            st.error("❌ 網路錯誤")
+            st.stop()
 
-    if bull_market:
-        st.success("🚀 檢測到大多頭：股價 > 年線5% 以上。系統自動關閉，報酬 = 買入持有")
+    # --- 計算 ---
+    ma250 = df['Close'].rolling(250).mean().iloc[-1]
+    price = df['Close'].iloc[-1]
+    年線上方 = price > ma250 * 1.05
 
-    with st.expander("📋 五項技術診斷 + Debug"):
-        for k, v in details.items():
-            st.text(f"{k}: {v}")
-        st.info(f"**操作建議**: {reason}")
+    delta = df['Close'].diff()
+    gain = delta.where(delta > 0, 0).rolling(14).mean().iloc[-1]
+    loss = -delta.where(delta < 0, 0).rolling(14).mean().iloc[-1]
+    rs = gain / loss if loss != 0 else 100
+    rsi = 100 - (100 / (1 + rs))
+    
+    vol_ma = df['Volume'].rolling(20).mean().iloc[-1]
+    vol_ratio = df['Volume'].iloc[-1] / vol_ma
+    
+    ma20 = df['Close'].rolling(20).mean().iloc[-1]
+    ma60 = df['Close'].rolling(60).mean().iloc[-1]
+    趨勢向上 = price > ma20 > ma60
+    是ETF = stock.replace('.TW', '').startswith('00')
 
-    if backtest_btn:
-        st.subheader("📊 2年歷史回測報告")
-        result = backtest(hist, stock)
+    # --- 打分 ---
+    分數 = 0
+    原因 = []
+    
+    if 年線上方:
+        分數 = 100
+        燈號 = "green"
+        燈號字 = "🟢 綠燈"
+        結論 = "閉眼買入"
+        原因.append(f"✅ 現在 {price:.0f} 元，比過去1年平均 {ma250:.0f} 元貴很多")
+        原因.append("✅ 所有人都在賺錢，大多頭市場不會輕易結束")
+        原因.append("⛔ 你現在賣掉，過3個月會搥心肝")
+    else:
+        if rsi < 30: 
+            分數 += 25
+            原因.append(f"✅ RSI {rsi:.0f} 大家恐慌亂砍，撿便宜好時機")
+        elif rsi < 50:
+            分數 += 15
+            原因.append(f"⚠️ RSI {rsi:.0f} 價格普通，不貴不便宜")
+        else:
+            原因.append(f"❌ RSI {rsi:.0f} 太貴了，大家在FOMO亂追高")
+        
+        if vol_ratio > 1.5:
+            分數 += 25
+            原因.append(f"✅ 成交量爆 {vol_ratio:.1f} 倍，有大戶在偷偷買")
+        elif vol_ratio > 1.0:
+            分數 += 15
+            原因.append(f"⚠️ 成交量 {vol_ratio:.1f} 倍，還算正常")
+        else:
+            原因.append(f"❌ 成交量剩 {vol_ratio:.1f} 倍，沒人要，死水一潭")
+        
+        if 趨勢向上:
+            分數 += 50
+            原因.append(f"✅ 短線漲過長線，代表趨勢往上，順風車")
+        else:
+            原因.append(f"❌ 短線跌破長線，代表趨勢往下，逆風不要上")
+        
+        門檻 = 60 if 是ETF else 70
+        if 分數 >= 門檻:
+            燈號 = "green"
+            燈號字 = "🟢 綠燈"
+            結論 = "可以買了"
+        elif 分數 >= 40:
+            燈號 = "yellow"
+            燈號字 = "🟡 黃燈"
+            結論 = "再等等"
+        else:
+            燈號 = "red"
+            燈號字 = "🔴 紅燈"
+            結論 = "千萬別買"
 
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("模式", result['mode'])
-        col2.metric("策略報酬", f"{result['strategy']:.1f}%", f"{result['strategy']-result['buy_hold']:.1f}% vs 大盤")
-        col3.metric("買入持有", f"{result['buy_hold']:.1f}%")
-        col4.metric("勝率", f"{result['win_rate']:.1f}%", f"最大回檔 {result['max_dd']:.1f}%")
-
-        st.line_chart(result['df'][['Equity', 'BuyHold']].rename(columns={'Equity': '策略淨值', 'BuyHold': '買入持有'}))
-
-        if result['trades']:
-            st.caption(f"交易次數: {len(result['trades'])//2} 次")
-            trade_df = pd.DataFrame(result['trades'])
-            st.dataframe(trade_df.tail(10), use_container_width=True)
+    # --- 顯示酷炫燈號 ---
+    st.markdown("---")
+    
+    st.markdown(f"""
+    <div class="traffic-light {燈號}-light">
+        <p class="score-text">{分數}分</p>
+        <p class="title-text">{燈號字}</p>
+        <p style="font-size: 32px; color: white; margin: 0;">{結論}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 為什麼
+    st.markdown("### 📝 AI幫你看盤結論")
+    for i, r in enumerate(原因, 1):
+        st.markdown(f'<div class="reason-box">{i}. {r}</div>', unsafe_allow_html=True)
+    
+    # 白話總結
+    st.markdown("---")
+    if 年線上方:
+        st.success("💡 **一句話總結**：這支股票所有投資人平均都賺錢，市場氣氛超嗨。現在賣=幫別人抬轎，抱緊持有一年再來看。")
+    else:
+        if 是ETF:
+            st.info(f"💡 **一句話總結**：ETF要 {門檻} 分才能買，現在 {分數} 分{結論}。ETF要等大盤崩一起撿，現在買會套在高點。")
+        else:
+            st.info(f"💡 **一句話總結**：個股要 {門檻} 分才能買，現在 {分數} 分{結論}。趨勢往下時進場，下場就是幫人接刀子。")
 
 else:
-    st.info("👆 輸入代號後點擊按鈕開始。L7.3版：Debug年線數值，抓出牛熊誤判原因")
-    st.caption("個股70分｜ETF60分｜股價>年線5% = 大多頭模式")
+    st.markdown("---")
+    st.info("👆 打股票代號，按按鈕。綠燈買，黃燈等，紅燈跑。")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 20px; border-radius: 15px; text-align: center; color: white;">
+            <h2>🟢 綠燈</h2>
+            <p><b>閉眼買</b></p>
+            <p>大多頭or分數達標</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 15px; text-align: center; color: white;">
+            <h2>🟡 黃燈</h2>
+            <p><b>再等等</b></p>
+            <p>分數不夠，等跌</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); padding: 20px; border-radius: 15px; text-align: center; color: white;">
+            <h2>🔴 紅燈</h2>
+            <p><b>別碰</b></p>
+            <p>下跌趨勢，買就套</p>
+        </div>
+        """, unsafe_allow_html=True)
