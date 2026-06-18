@@ -3,200 +3,284 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import numpy as np
+from datetime import datetime, timedelta
 
-# 頁面設定
+# ========== 頁面設定 ==========
 st.set_page_config(
-    page_title="台股智能診斷",
-    page_icon="📈",
+    page_title="台股智能診斷 Pro",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 自訂 CSS
+# ========== Pro 版 CSS - 高對比度 ==========
 st.markdown("""
 <style>
-   .main {background-color: #0E1117;}
-   .stMetric {
-        background-color: #1E2329;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #2B3139;
+    @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
+
+   .stApp {
+        background-color: #0f172a;
     }
-   .score-card {
-        background: linear-gradient(135deg, #1E2329 0%, #2B3139 100%);
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #3B4252;
-        text-align: center;
+
+    /* 卡片底色亮一點 */
+   .metric-card {
+        background: #1e293b;
+        border: 1px solid #475569;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        transition: all 0.3s;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
-    h1 {color: #FAFAFA; text-align: center;}
-    h3 {color: #00D4AA;}
+   .metric-card:hover {
+        transform: translateY(-4px);
+        border-color: #3b82f6;
+        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    /* 標題字純白 */
+   .card-title {
+        color: #f8fafc;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* 數字純白加粗加大 */
+   .card-value {
+        color: #ffffff;
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* 小字說明亮白 */
+   .card-delta {
+        color: #e2e8f0;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        font-weight: 500;
+    }
+
+   .positive { color: #22c55e!important; font-weight: 700; }
+   .negative { color: #ef4444!important; font-weight: 700; }
+   .neutral { color: #facc15!important; font-weight: 700; }
+
+    h1, h2, h3, h4 {
+        color: #ffffff!important;
+    }
+
+   .stTextInput > div > div > input {
+        background-color: #1e293b;
+        color: #ffffff;
+        border: 1px solid #475569;
+    }
+
+   .stButton > button {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        font-weight: 700;
+        border: none;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>📈 台股智能診斷系統</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #888;'>ETF/個股自動切換｜五項技術評分｜拒絕當韭菜</p>", unsafe_allow_html=True)
+# ========== 標題 ==========
+st.markdown("# 📊 台股智能診斷系統 Pro")
+st.markdown("<p style='color: #cbd5e1; font-size: 1.1rem; margin-bottom: 2rem;'>ETF 模式 + 個股技術分析 | 即時診斷</p>", unsafe_allow_html=True)
 
-# 輸入區
-col_input, col_btn = st.columns([4,1])
-with col_input:
-    代號 = st.text_input(" ", placeholder="輸入台股代號，如 2330、0050、2360", label_visibility="collapsed").strip()
-with col_btn:
-    分析按鈕 = st.button("開始診斷", type="primary", use_container_width=True)
+# ========== 輸入區 ==========
+col1, col2 = st.columns([3, 1])
+with col1:
+    code = st.text_input("輸入台股代號", value="2360", label_visibility="collapsed", placeholder="例如: 2360、0050、2330")
+with col2:
+    run = st.button("🚀 開始診斷", use_container_width=True, type="primary")
 
-if 分析按鈕 and 代號:
+# ========== 工具函數 ==========
+def get_stock_data(ticker, period="6mo"):
     try:
-        etf清單 = ['0050', '0056', '00878', '006208', '00692', '00713', '00919', '00929', '00940']
-        是ETF = 代號 in etf清單
+        stock = yf.Ticker(f"{ticker}.TW")
+        hist = stock.history(period=period)
+        info = stock.info
+        return hist, info
+    except:
+        return None, None
 
-        股票代號 = f"{代號}.TW"
-        抓取期間 = "1y" if 是ETF else "6mo"
+def calculate_rsi(data, period=14):
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
-        with st.spinner(f"正在診斷 {代號}..."):
-            data = yf.download(股票代號, period=抓取期間, interval="1d", progress=False, auto_adjust=True)
+def calculate_macd(data):
+    exp1 = data['Close'].ewm(span=12, adjust=False).mean()
+    exp2 = data['Close'].ewm(span=26, adjust=False).mean()
+    macd = exp1 - exp2
+    signal = macd.ewm(span=9, adjust=False).mean()
+    hist = macd - signal
+    return macd, signal, hist
 
-        if data.empty:
-            st.error("😵 抓不到資料，請確認代號正確")
-            st.stop()
+# ========== 主程式 ==========
+if run and code:
+    with st.spinner('診斷中...'):
+        hist, info = get_stock_data(code)
 
-        開盤 = data['Open'].squeeze()
-        收盤 = data['Close'].squeeze()
-        最高 = data['High'].squeeze()
-        最低 = data['Low'].squeeze()
-        成交量 = data['Volume'].squeeze()
-
-        # 技術指標
-        ma5 = 收盤.rolling(5, min_periods=1).mean()
-        ma20 = 收盤.rolling(20, min_periods=1).mean()
-        ma60 = 收盤.rolling(60, min_periods=1).mean()
-        ma120 = 收盤.rolling(120, min_periods=1).mean()
-
-        delta = 收盤.diff()
-        gain = delta.where(delta > 0, 0)
-        loss = -delta.where(delta < 0, 0)
-        avg_gain = gain.rolling(14, min_periods=1).mean()
-        avg_loss = loss.rolling(14, min_periods=1).mean()
-        rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-
-        最新價 = float(收盤.dropna().iloc[-1])
-        昨收價 = float(收盤.dropna().iloc[-2])
-        漲跌幅 = (最新價/昨收價-1)*100
-        最新RSI = rsi.iloc[-1]
-        最新量 = 成交量.iloc[-1]
-
-        # 股票名稱
-        try:
-            ticker_info = yf.Ticker(股票代號).info
-            名稱 = ticker_info.get('longName', 代號)
-        except:
-            名稱 = 代號
-
-        st.markdown(f"### {名稱} ({代號}) | {'🏦 ETF模式' if 是ETF else '🎯 個股模式'}")
-        st.divider()
-
-        # 四大指標卡片
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("💰 最新收盤", f"{最新價:.2f}", f"{漲跌幅:+.2f}%")
-        col2.metric("📊 RSI(14)", f"{最新RSI:.1f}", "超買>70" if 最新RSI>70 else "超賣<30" if 最新RSI<30 else "中性")
-        col3.metric("📈 成交量", f"{最新量/1000:.0f} 張", f"{最新量/成交量.rolling(20).mean().iloc[-1]:.1f}x")
-        col4.metric("📅 資料範圍", data.index[0].strftime('%Y/%m/%d'), data.index[-1].strftime('%Y/%m/%d'))
-
-        # K線圖 Plotly 版
-        st.markdown("### 📉 技術線圖")
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                           vertical_spacing=0.03, row_heights=[0.7, 0.3])
-
-        fig.add_trace(go.Candlestick(x=data.index, open=開盤, high=最高, low=最低, close=收盤,
-                                     name="K線", increasing_line_color='#00D4AA', decreasing_line_color='#FF5A5F'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=ma5, name='MA5', line=dict(color='#FFB800', width=1)), row=1, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=ma20, name='MA20', line=dict(color='#00D4AA', width=1.5)), row=1, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=ma60, name='MA60', line=dict(color='#8B5CF6', width=1.5)), row=1, col=1)
-
-        fig.add_trace(go.Bar(x=data.index, y=成交量, name='成交量',
-                            marker_color=['#FF5A5F' if 收盤.iloc[i]<開盤.iloc[i] else '#00D4AA' for i in range(len(收盤))]),
-                     row=2, col=1)
-
-        fig.update_layout(height=600, xaxis_rangeslider_visible=False,
-                         template='plotly_dark', showlegend=True,
-                         paper_bgcolor='#0E1117', plot_bgcolor='#0E1117')
-        fig.update_xaxes(showgrid=True, gridcolor='#2B3139')
-        fig.update_yaxes(showgrid=True, gridcolor='#2B3139')
-        st.plotly_chart(fig, use_container_width=True)
-
-        # 智能評分
-        st.markdown("### 🎯 五項技術評分")
-        評分 = {}
-
-        if 是ETF:
-            ma120_20天前 = ma120.iloc[-20] if len(ma120) >= 20 else ma120.iloc[0]
-            ma120_斜率 = (ma120.iloc[-1] - ma120_20天前) / ma120_20天前 * 100
-            評分['長期趨勢'] = 20 if ma120_斜率 > 0 else 0
-
-            乖離率 = (最新價 / ma120.iloc[-1] - 1) * 100
-            評分['乖離率'] = 20 if 乖離率 < -5 else 10 if 乖離率 < 0 else 0
-            評分['季線'] = 20 if 最新價 > ma60.iloc[-1] else 0
-            評分['動能'] = 20 if 最新RSI < 40 else 10 if 最新RSI < 50 else 0
-
-            量能比 = 最新量 / 成交量.rolling(20, min_periods=1).mean().iloc[-1]
-            評分['籌碼安定'] = 20 if 量能比 < 1.2 and 最新價 >= 昨收價 else 10 if 量能比 < 1.5 else 0
-
-            項目說明 = ['MA120斜率', '乖離MA120', '站上季線', 'RSI超賣', '縮量價穩']
-            數值 = [f"{ma120_斜率:.2f}%", f"{乖離率:.2f}%", f"{最新價:.0f}>{ma60.iloc[-1]:.0f}", f"{最新RSI:.1f}", f"{量能比:.2f}x"]
+        if hist is None or hist.empty:
+            st.error(f"❌ 找不到代號 {code}，請確認是否為正確台股代號")
         else:
-            ma20_5天前 = ma20.iloc[-5] if len(ma20) >= 5 else ma20.iloc[0]
-            ma20_斜率 = (ma20.iloc[-1] - ma20_5天前) / ma20_5天前 * 100
-            評分['趨勢'] = 20 if ma20_斜率 > 1 else 10 if ma20_斜率 > 0 else 0
+            # 判斷 ETF 或個股
+            is_etf = info.get('quoteType') == 'ETF' or code.startswith('00')
 
-            量能比 = 最新量 / 成交量.rolling(20, min_periods=1).mean().iloc[-1]
-            評分['量能'] = 20 if 量能比 > 1.5 and 最新價 > 昨收價 else 10 if 量能比 > 1 else 0
-            評分['均線'] = 20 if 最新價 > ma20.iloc[-1] else 0
-            評分['動能'] = 20 if 50 < 最新RSI < 70 else 10 if 40 < 最新RSI <= 50 else 0
+            current_price = hist['Close'][-1]
+            prev_price = hist['Close'][-2]
+            change = current_price - prev_price
+            change_pct = (change / prev_price) * 100
 
-            近20高 = 最高.rolling(20, min_periods=1).max().iloc[-2]
-            評分['支撐壓力'] = 20 if 最新價 > 近20高 else 0
+            volume = hist['Volume'][-1]
+            avg_volume = hist['Volume'].rolling(20).mean()[-1]
+            volume_ratio = volume / avg_volume if avg_volume > 0 else 0
 
-            項目說明 = ['MA20斜率', '爆量上攻', '站上月線', 'RSI強勢', '突破新高']
-            數值 = [f"{ma20_斜率:.2f}%", f"{量能比:.2f}x", f"{最新價:.0f}>{ma20.iloc[-1]:.0f}", f"{最新RSI:.1f}", f"{最新價:.0f}>{近20高:.0f}"]
+            rsi = calculate_rsi(hist)[-1]
+            macd, signal, hist_macd = calculate_macd(hist)
 
-        總分 = sum(評分.values())
+            # ========== 卡片顯示 ==========
+            st.markdown("### 📈 即時診斷結果")
 
-        # 分數卡片
-        col_score1, col_score2, col_score3 = st.columns([1,2,1])
-        with col_score2:
-            if 是ETF:
-                if 總分 >= 60:
-                    st.success(f"## {總分} / 100 分")
-                    st.markdown("<div class='score-card'><h3>🟢 適合分批存股</h3><p>長期持有，逢低加碼</p></div>", unsafe_allow_html=True)
-                elif 總分 >= 40:
-                    st.warning(f"## {總分} / 100 分")
-                    st.markdown("<div class='score-card'><h3>🟡 價格合理</h3><p>可小額定期定額</p></div>", unsafe_allow_html=True)
-                else:
-                    st.error(f"## {總分} / 100 分")
-                    st.markdown("<div class='score-card'><h3>🔴 價格偏高</h3><p>建議觀望等回檔</p></div>", unsafe_allow_html=True)
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                color_class = "positive" if change >= 0 else "negative"
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="card-title">目前股價</div>
+                    <div class="card-value">${current_price:.2f}</div>
+                    <div class="card-delta {color_class}">{change:+.2f} ({change_pct:+.2f}%)</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col2:
+                rsi_color = "negative" if rsi > 70 else "positive" if rsi < 30 else "neutral"
+                rsi_text = "超買" if rsi > 70 else "超賣" if rsi < 30 else "中性"
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="card-title">RSI 指標</div>
+                    <div class="card-value {rsi_color}">{rsi:.1f}</div>
+                    <div class="card-delta">{rsi_text}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col3:
+                vol_color = "positive" if volume_ratio > 1.5 else "negative" if volume_ratio < 0.5 else "neutral"
+                vol_text = "爆量" if volume_ratio > 1.5 else "量縮" if volume_ratio < 0.5 else "均量"
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="card-title">成交量</div>
+                    <div class="card-value {vol_color}">{volume_ratio:.1f}x</div>
+                    <div class="card-delta">{vol_text} · {int(volume/1000)}張</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col4:
+                macd_color = "positive" if hist_macd[-1] > 0 else "negative"
+                macd_text = "多頭" if hist_macd[-1] > 0 else "空頭"
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="card-title">MACD</div>
+                    <div class="card-value {macd_color}">{hist_macd[-1]:.2f}</div>
+                    <div class="card-delta">{macd_text}訊號</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # ========== 個股才顯示K線 ==========
+            if not is_etf:
+                st.markdown("### 📊 技術線圖")
+
+                fig = make_subplots(
+                    rows=3, cols=1,
+                    shared_xaxes=True,
+                    vertical_spacing=0.05,
+                    row_heights=[0.6, 0.2, 0.2],
+                    subplot_titles=('K線圖', '成交量', 'MACD')
+                )
+
+                # K線
+                fig.add_trace(go.Candlestick(
+                    x=hist.index,
+                    open=hist['Open'],
+                    high=hist['High'],
+                    low=hist['Low'],
+                    close=hist['Close'],
+                    name='K線',
+                    increasing_line_color='#22c55e',
+                    decreasing_line_color='#ef4444'
+                ), row=1, col=1)
+
+                # MA線
+                ma5 = hist['Close'].rolling(5).mean()
+                ma20 = hist['Close'].rolling(20).mean()
+                ma60 = hist['Close'].rolling(60).mean()
+
+                fig.add_trace(go.Scatter(x=hist.index, y=ma5, name='MA5', line=dict(color='#fbbf24', width=1)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=ma20, name='MA20', line=dict(color='#a78bfa', width=1)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=ma60, name='MA60', line=dict(color='#60a5fa', width=1)), row=1, col=1)
+
+                # 成交量
+                colors = ['#22c55e' if hist['Close'][i] >= hist['Open'][i] else '#ef4444' for i in range(len(hist))]
+                fig.add_trace(go.Bar(x=hist.index, y=hist['Volume'], name='成交量', marker_color=colors), row=2, col=1)
+
+                # MACD
+                fig.add_trace(go.Bar(x=hist.index, y=hist_macd, name='MACD柱', marker_color='#64748b'), row=3, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=macd, name='DIF', line=dict(color='#3b82f6', width=2)), row=3, col=1)
+                fig.add_trace(go.Scatter(x=hist.index, y=signal, name='DEA', line=dict(color='#f59e0b', width=2)), row=3, col=1)
+
+                fig.update_layout(
+                    template='plotly_dark',
+                    height=800,
+                    showlegend=True,
+                    xaxis_rangeslider_visible=False,
+                    paper_bgcolor='#0f172a',
+                    plot_bgcolor='#1e293b',
+                    font=dict(color='#f8fafc', size=12)
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
             else:
-                if 總分 >= 60:
-                    st.success(f"## {總分} / 100 分")
-                    st.markdown("<div class='score-card'><h3>🟢 偏多格局</h3><p>可留意買點，設好停損</p></div>", unsafe_allow_html=True)
-                elif 總分 >= 40:
-                    st.warning(f"## {總分} / 100 分")
-                    st.markdown("<div class='score-card'><h3>🟡 中性盤整</h3><p>觀望為主，不追高</p></div>", unsafe_allow_html=True)
-                else:
-                    st.error(f"## {總分} / 100 分")
-                    st.markdown("<div class='score-card'><h3>🔴 偏空格局</h3><p>謹慎操作，避免抄底</p></div>", unsafe_allow_html=True)
+                st.info("💡 ETF 模式：專注基本指標，不顯示技術線圖")
 
-        # 評分明細
-        評分表 = pd.DataFrame({
-            '項目': 項目說明,
-            '得分': [f"{v}/20" for v in 評分.values()],
-            '數值': 數值,
-            '狀態': ['✅' if v==20 else '⚠️' if v==10 else '❌' for v in 評分.values()]
-        })
-        st.dataframe(評分表, hide_index=True, use_container_width=True)
+            # ========== 診斷結論 ==========
+            st.markdown("### 🎯 診斷結論")
 
-    except Exception as e:
-        st.error(f"😵 發生錯誤: {e}")
-        st.info("可能代號錯誤或資料抓取失敗，請重試")
+            conclusions = []
+            if rsi > 70:
+                conclusions.append("RSI 超買區，短線過熱注意回調風險")
+            elif rsi < 30:
+                conclusions.append("RSI 超賣區，短線有反彈機會")
+            else:
+                conclusions.append("RSI 中性區間，多空未明")
 
-elif 分析按鈕:
-    st.warning("⚠️ 請先輸入台股代號")
+            if volume_ratio > 1.5:
+                conclusions.append("今日爆量，有主力進場跡象")
+            elif volume_ratio < 0.5:
+                conclusions.append("量能萎縮，市場觀望氣氛濃")
+
+            if hist_macd[-1] > 0 and macd[-1] > signal[-1]:
+                conclusions.append("MACD 多頭排列，趨勢偏強")
+            elif hist_macd[-1] < 0 and macd[-1] < signal[-1]:
+                conclusions.append("MACD 空頭排列，趨勢偏弱")
+
+            for c in conclusions:
+                st.markdown(f"- {c}")
+
+else:
+    st.info("👆 輸入台股代號，點擊「開始診斷」查看即時分析")
+
+    st.markdown("### 🔥 熱門標的")
+    cols = st.columns(6)
+    hot_stocks = ["2330", "2454", "2317", "0050", "00878", "00929"]
+    for i, stock in enumerate(hot_stocks):
+        cols[i].button(stock, key=f"hot_{stock}", use_container_width=True)
