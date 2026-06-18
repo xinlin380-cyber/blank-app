@@ -251,7 +251,8 @@ if run or backtest:
                 hist['position'] = 0
                 hist.loc[hist['score'] > 70, 'position'] = 1
                 hist.loc[hist['score'] < 40, 'position'] = -1
-                hist['position'] = hist['position'].replace(to_replace=0, method='ffill').fillna(0)
+                # 修正：先把0變NaN再ffill
+                hist['position'] = hist['position'].replace(0, np.nan).ffill().fillna(0)
                 hist['returns'] = hist['Close'].pct_change()
                 hist['strategy'] = hist['position'].shift(1) * hist['returns']
                 hist['cumulative'] = (1 + hist['strategy']).cumprod()
@@ -262,7 +263,9 @@ if run or backtest:
 
                 total_return = (hist['cumulative'].iloc[-1] - 1) * 100
                 buy_hold_return = (hist['buy_hold'].iloc[-1] - 1) * 100
-                win_rate = len(hist[hist['strategy'] > 0]) / len(hist[hist['strategy']!= 0]) * 100 if len(hist[hist['strategy']!= 0]) > 0 else 0
+                win_days = len(hist[hist['strategy'] > 0])
+                trade_days = len(hist[hist['strategy']!= 0])
+                win_rate = win_days / trade_days * 100 if trade_days > 0 else 0
                 max_dd = (hist['cumulative'] / hist['cumulative'].cummax() - 1).min() * 100
 
                 col1, col2, col3, col4 = st.columns(4)
