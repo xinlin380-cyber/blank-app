@@ -1,8 +1,8 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import numpy as np
-from datetime import datetime
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 st.set_page_config(page_title="台股燈號", page_icon="💡", layout="wide")
 
@@ -10,119 +10,81 @@ st.markdown("""
 <style>
 .stApp {background: #F8F3E9;}
 .block-container {padding-top: 1rem; max-width: 1200px;}
-
-* {
-    color: #4A4A4A!important;
-    font-family: 'Noto Sans TC', sans-serif!important;
-    font-weight: 500!important;
-}
+* {color: #4A4A4A!important; font-family: 'Noto Sans TC', sans-serif!important; font-weight: 500!important;}
 h1 {font-size: 48px!important; text-align: center!important; margin-bottom: 0!important; color: #4A4A4A!important;}
 p,div,span {font-size: 20px!important;}
-
-input[type="text"] {
-    background: #E9D8C1!important;
-    color: #4A4A4A!important;
-    border: 3px solid #D6C0B7!important;
-    font-size: 28px!important;
-    text-align: center!important;
-    padding: 16px!important;
-    border-radius: 12px!important;
-}
-
+input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; border: 3px solid #D6C0B7!important; font-size: 28px!important; text-align: center!important; padding: 16px!important; border-radius: 12px!important;}
 .hot-wrap {text-align: center; margin: 25px 0;}
-.hot-tag {
-    display: inline-block;
-    background: #D6C0B7;
-    border: 3px solid #C9B7A7;
-    color: #4A4A4A!important;
-    padding: 12px 24px;
-    margin: 8px;
-    border-radius: 15px;
-    font-size: 22px!important;
-    text-decoration: none!important;
-    cursor: pointer;
-}
+.hot-tag {display: inline-block; background: #D6C0B7; border: 3px solid #C9B7A7; color: #4A4A4A!important; padding: 12px 24px; margin: 8px; border-radius: 15px; font-size: 22px!important; text-decoration: none!important; cursor: pointer;}
 .hot-tag:hover {background: #C9B7A7;}
-
-.scan-btn {
-    display: block; width: 100%; background: #6D5A50!important;
-    color: #FFFFFF!important; border: none; padding: 20px;
-    font-size: 30px!important; font-weight: 700!important;
-    border-radius: 15px; text-align: center; text-decoration: none!important; margin: 25px 0;
-    cursor: pointer;
-}
-
-.light-box {
-    padding: 50px; border-radius: 25px; text-align: center; margin: 35px 0;
-    border: 8px solid;
-}
+.light-box {padding: 50px; border-radius: 25px; text-align: center; margin: 35px 0; border: 8px solid;}
 .light-green {border-color: #8CB88C; background: #D6C0B7;}
 .light-yellow {border-color: #D6C07C; background: #D6C0B7;}
 .light-red {border-color: #E88C8C; background: #D6C0B7;}
-
 .score-big {font-size: 120px; font-weight: 700; margin: 0; color: #FFFFFF!important; line-height: 1;}
 .title-big {font-size: 70px; font-weight: 700; margin: 15px 0; color: #FFFFFF!important;}
-
-.card-box {
-    padding: 30px 15px; border-radius: 18px; margin: 12px 0;
-    border: 4px solid; text-align: center; min-height: 180px;
-    background: #E9D8C1;
-}
+.card-box {padding: 30px 15px; border-radius: 18px; margin: 12px 0; border: 4px solid; text-align: center; min-height: 180px; background: #E9D8C1;}
 .card-green {border-color: #8CB88C;}
 .card-yellow {border-color: #D6C07C;}
 .card-red {border-color: #E88C8C;}
-
-.card-box * {
-    color: #4A4A4A!important;
-    font-size: 24px!important;
-    font-weight: 700!important;
-    line-height: 1.5!important;
-}
+.card-box * {color: #4A4A4A!important; font-size: 24px!important; font-weight: 700!important; line-height: 1.5!important;}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.18</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 24px;'>完整重寫版 | Yahoo真實數據+驗證</p>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.21</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 24px;'>最終穩定版 | 任意股票+K線+不跳頁</p>", unsafe_allow_html=True)
 
-if 'stock_input' not in st.session_state:
-    st.session_state.stock_input = ""
+if 'stock_code' not in st.session_state:
+    st.session_state.stock_code = st.query_params.get("stock", "")
 
-query_params = st.query_params
-if query_params.get("stock"):
-    st.session_state.stock_input = query_params.get("stock")
+def set_stock(code):
+    st.session_state.stock_code = code
+    st.query_params["stock"] = code
 
-hot_html = '<div class="hot-wrap">🔥 熱門：'
-for name, code in {"台積電2330":"2330", "0050":"0050", "00878":"00878", "長榮2603":"2603", "鴻海2317":"2317"}.items():
-    hot_html += f'<a href="?stock={code}" class="hot-tag">{name}</a>'
-hot_html += '</div>'
-st.markdown(hot_html, unsafe_allow_html=True)
+# 熱門標籤
+cols = st.columns(5)
+hot_stocks = {"台積電2330":"2330", "0050":"0050", "00878":"00878", "長榮2603":"2603", "鴻海2317":"2317"}
+for i, (name, code) in enumerate(hot_stocks.items()):
+    with cols[i]:
+        if st.button(name, key=f"hot_{code}", use_container_width=True):
+            set_stock(code)
+            st.rerun()
 
-stock = st.text_input("", value=st.session_state.stock_input, placeholder="輸入代號", label_visibility="collapsed")
+# 輸入框
+def run_scan():
+    st.session_state.stock_code = st.session_state.input_box
+    st.query_params["stock"] = st.session_state.input_box
+
+st.text_input(
+    "輸入任意台股代號",
+    placeholder="例如：2330、00940、00919、2603",
+    key="input_box",
+    value=st.session_state.stock_code,
+    on_change=run_scan,
+    label_visibility="collapsed"
+)
 
 if st.button("⚡ 開始掃描", use_container_width=True, type="primary"):
-    st.session_state.stock_input = stock
+    run_scan()
     st.rerun()
 
-if st.session_state.stock_input:
-    stock = st.session_state.stock_input
-    with st.spinner("從Yahoo抓取真實數據中..."):
+# 執行掃描
+if st.session_state.stock_code:
+    stock = st.session_state.stock_code.replace('.TW','')
+    with st.spinner(f"從Yahoo抓取 {stock} 真實數據中..."):
         try:
-            ticker = f"{stock}.TW" if not stock.endswith('.TW') else stock
-            df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
+            ticker = f"{stock}.TW"
+            df = yf.download(ticker, period="1y", progress=False, auto_adjust=True)
             if df.empty:
-                st.error("❌ Yahoo查無此股票")
+                st.error(f"❌ Yahoo查無 {stock}，確認代號是否正確")
                 st.stop()
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             df = df.dropna()
-            if len(df) < 250:
-                st.error("❌ 數據不足250天，無法計算年線")
-                st.stop()
         except Exception as e:
             st.error(f"❌ Yahoo抓取失敗：{e}")
             st.stop()
 
-    # 計算指標
     df['MA20'] = df['Close'].rolling(20).mean()
     df['MA60'] = df['Close'].rolling(60).mean()
     df['MA250'] = df['Close'].rolling(250).mean()
@@ -142,15 +104,14 @@ if st.session_state.stock_input:
 
     latest = df.iloc[-1]
     price = float(latest['Close'])
-    ma250 = float(latest['MA250'])
+    ma250 = float(latest['MA250']) if not pd.isna(latest['MA250']) else 0
     ma20 = float(latest['MA20'])
     ma60 = float(latest['MA60'])
     rsi = float(latest['RSI'])
     vol_ratio = float(latest['Volume_Ratio'])
     macd_hist = float(latest['MACD_Hist'])
 
-    # 打分邏輯
-    年線上方 = price > ma250
+    年線上方 = price > ma250 if ma250 > 0 else False
     總分 = 0
     分析 = []
     顏色 = []
@@ -212,13 +173,12 @@ if st.session_state.stock_input:
         分析.append(f"🚀 偏空<br>+0分")
         顏色.append("red")
 
-    # 燈號
     if 總分 >= 70:
-        燈號, 建議, 邊框 = "green", "綠燈 買進訊號", "light-green"
+        邊框, 建議 = "light-green", "綠燈 買進訊號"
     elif 總分 >= 40:
-        燈號, 建議, 邊框 = "yellow", "黃燈 觀望", "light-yellow"
+        邊框, 建議 = "light-yellow", "黃燈 觀望"
     else:
-        燈號, 建議, 邊框 = "red", "紅燈 避開", "light-red"
+        邊框, 建議 = "light-red", "紅燈 避開"
 
     st.markdown(f'<div class="light-box {邊框}"><div class="score-big">{總分}</div><div class="title-big">{建議}</div></div>', unsafe_allow_html=True)
 
@@ -227,9 +187,23 @@ if st.session_state.stock_input:
         with cols[i]:
             st.markdown(f'<div class="card-box card-{色}">{文}</div>', unsafe_allow_html=True)
 
-    # 驗證區塊
     st.markdown("---")
-    st.markdown("### 🔍 Yahoo原始數據驗證 - 保證沒唬你")
-    st.write(f"**股票代號**: {ticker} | **最新日期**: {df.index[-1].strftime('%Y-%m-%d')} | **資料筆數**: {len(df)}天")
-    st.dataframe(df[['Close', 'Volume', 'MA250']].tail(10).round(2), use_container_width=True)
-    st.caption("對照 finance.yahoo.com 網站，收盤價Close跟年線MA250應該完全一樣")
+    st.markdown(f"### 📊 {stock} K線圖")
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
+    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='K線', increasing_line_color='#8CB88C', decreasing_line_color='#E88C8C'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], line=dict(color='#6D5A50', width=1), name='MA20'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df['MA60'], line=dict(color='#D6C07C', width=1), name='MA60'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df['MA250'], line=dict(color='#E88C8C', width=2), name='年線'), row=1, col=1)
+    colors = ['#8CB88C' if row['Close'] >= row['Open'] else '#E88C8C' for _, row in df.iterrows()]
+    fig.add_trace(go.Bar(x=df.index, y=df['Volume'], marker_color=colors, name='成交量'), row=2, col=1)
+    fig.update_layout(plot_bgcolor='#F8F3E9', paper_bgcolor='#F8F3E9', font=dict(color='#4A4A4A'), xaxis_rangeslider_visible=False, height=600, showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_xaxes(gridcolor='#E9D8C1')
+    fig.update_yaxes(gridcolor='#E9D8C1')
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+    st.markdown("### 🔍 Yahoo原始數據驗證")
+    st.write(f"**股票**: {stock}.TW | **日期**: {df.index[-1].strftime('%Y-%m-%d')}")
+    st.dataframe(df[['Open','High','Low','Close','Volume']].tail(10).round(2), use_container_width=True)
+else:
+    st.info("👆 輸入任意台股代號，例如：2330、00940、00919、2603")
