@@ -32,7 +32,7 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 """, unsafe_allow_html=True)
 
 st.markdown("<h1>💡 台股燈號 L10.22</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 24px;'>修復00878崩潰版 | 不會跳頁</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 24px;'></p>", unsafe_allow_html=True)
 
 if 'stock_code' not in st.session_state:
     st.session_state.stock_code = st.query_params.get("stock", "")
@@ -68,7 +68,7 @@ if st.button("⚡ 開始掃描", use_container_width=True, type="primary"):
 
 if st.session_state.stock_code:
     stock = st.session_state.stock_code.replace('.TW','')
-    with st.spinner(f"從Yahoo抓取 {stock} 真實數據中..."):
+    with st.spinner(f"從Yahoo抓取 {stock} 數據中..."):
         try:
             ticker = f"{stock}.TW"
             df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
