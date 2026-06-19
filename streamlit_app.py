@@ -31,8 +31,8 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.21</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 24px;'> 任意股票+K線</p>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.22</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 24px;'>修復00878崩潰版 | 不會跳頁</p>", unsafe_allow_html=True)
 
 if 'stock_code' not in st.session_state:
     st.session_state.stock_code = st.query_params.get("stock", "")
@@ -41,7 +41,6 @@ def set_stock(code):
     st.session_state.stock_code = code
     st.query_params["stock"] = code
 
-# 熱門標籤
 cols = st.columns(5)
 hot_stocks = {"台積電2330":"2330", "0050":"0050", "00878":"00878", "長榮2603":"2603", "鴻海2317":"2317"}
 for i, (name, code) in enumerate(hot_stocks.items()):
@@ -50,7 +49,6 @@ for i, (name, code) in enumerate(hot_stocks.items()):
             set_stock(code)
             st.rerun()
 
-# 輸入框
 def run_scan():
     st.session_state.stock_code = st.session_state.input_box
     st.query_params["stock"] = st.session_state.input_box
@@ -68,13 +66,12 @@ if st.button("⚡ 開始掃描", use_container_width=True, type="primary"):
     run_scan()
     st.rerun()
 
-# 執行掃描
 if st.session_state.stock_code:
     stock = st.session_state.stock_code.replace('.TW','')
-    with st.spinner(f"從Yahoo抓取 {stock} 數據中..."):
+    with st.spinner(f"從Yahoo抓取 {stock} 真實數據中..."):
         try:
             ticker = f"{stock}.TW"
-            df = yf.download(ticker, period="1y", progress=False, auto_adjust=True)
+            df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
             if df.empty:
                 st.error(f"❌ Yahoo查無 {stock}，確認代號是否正確")
                 st.stop()
@@ -85,31 +82,42 @@ if st.session_state.stock_code:
             st.error(f"❌ Yahoo抓取失敗：{e}")
             st.stop()
 
-    df['MA20'] = df['Close'].rolling(20).mean()
-    df['MA60'] = df['Close'].rolling(60).mean()
-    df['MA250'] = df['Close'].rolling(250).mean()
+    # 計算指標前先檢查
+    if len(df) < 250:
+        st.warning(f"⚠️ {stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
+
+    df['MA20'] = df['Close'].rolling(20, min_periods=1).mean()
+    df['MA60'] = df['Close'].rolling(60, min_periods=1).mean()
+    df['MA250'] = df['Close'].rolling(250, min_periods=1).mean()
     delta = df['Close'].diff()
-    gain = delta.where(delta > 0, 0).rolling(14).mean()
-    loss = -delta.where(delta < 0, 0).rolling(14).mean()
+    gain = delta.where(delta > 0, 0).rolling(14, min_periods=1).mean()
+    loss = -delta.where(delta < 0, 0).rolling(14, min_periods=1).mean()
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
-    df['Volume_MA'] = df['Volume'].rolling(20).mean()
+    df['Volume_MA'] = df['Volume'].rolling(20, min_periods=1).mean()
     df['Volume_Ratio'] = df['Volume'] / df['Volume_MA']
-    ema12 = df['Close'].ewm(span=12).mean()
-    ema26 = df['Close'].ewm(span=26).mean()
+    ema12 = df['Close'].ewm(span=12, adjust=False).mean()
+    ema26 = df['Close'].ewm(span=26, adjust=False).mean()
     df['MACD'] = ema12 - ema26
-    df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
+    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
     df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
-    df = df.dropna()
+
+    # 關鍵修復：不用dropna()，改用ffill()補齊
+    df = df.ffill()
+
+    # 防呆：如果還是空的就報錯
+    if df.empty:
+        st.error(f"❌ {stock} 計算指標後無有效數據")
+        st.stop()
 
     latest = df.iloc[-1]
     price = float(latest['Close'])
     ma250 = float(latest['MA250']) if not pd.isna(latest['MA250']) else 0
     ma20 = float(latest['MA20'])
     ma60 = float(latest['MA60'])
-    rsi = float(latest['RSI'])
-    vol_ratio = float(latest['Volume_Ratio'])
-    macd_hist = float(latest['MACD_Hist'])
+    rsi = float(latest['RSI']) if not pd.isna(latest['RSI']) else 50
+    vol_ratio = float(latest['Volume_Ratio']) if not pd.isna(latest['Volume_Ratio']) else 1
+    macd_hist = float(latest['MACD_Hist']) if not pd.isna(latest['MACD_Hist']) else 0
 
     年線上方 = price > ma250 if ma250 > 0 else False
     總分 = 0
