@@ -31,7 +31,7 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.22</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 24px;'></p>", unsafe_allow_html=True)
 
 if 'stock_code' not in st.session_state:
