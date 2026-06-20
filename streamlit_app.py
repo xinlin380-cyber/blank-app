@@ -9,7 +9,7 @@ import warnings
 import re
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="台股燈號", page_icon="💡", layout="wide")
+st.set_page_config(page_title="台股紅綠燈", page_icon="🚥", layout="wide")
 
 st.markdown("""
 <style>
