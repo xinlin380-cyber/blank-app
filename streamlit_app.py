@@ -80,7 +80,7 @@ with st.expander("📖 點我看完整使用說明書，新手必讀", expanded=
     st.markdown("")
     st.markdown("---")
     st.markdown("")
-    st.markdown("### 📚 名詞解釋，講人話版本")
+    st.markdown("### 📚 名詞解釋")
     st.markdown("")
     st.markdown("**🐮 上漲趨勢 / 大家在買**:多頭。股價比過去250天平均還高，代表最近買的人多，大家看好")
     st.markdown("")
