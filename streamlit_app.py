@@ -13,36 +13,36 @@ st.set_page_config(page_title="台股燈號", page_icon="💡", layout="wide")
 
 st.markdown("""
 <style>
-/* 全域字體修復，解決疊字問題 */
-html, body, [class*="css"] {
-    font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif!important;
-    line-height: 1.8!important;
-    font-weight: 400!important;
-}
 .stApp {background: #F8F3E9;}
 .block-container {padding-top: 1rem; max-width: 1200px;}
+/* 主字體 + Emoji專用字體 */
+html, body, [class*="css"] {
+    font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif!important;
+    line-height: 2.0!important;
+    font-weight: 400!important;
+}
 h1 {
     font-size: 48px!important;
     text-align: center!important;
-    margin-bottom: 0!important;
+    margin-bottom: 0.5rem!important;
     color: #4A4A4A!important;
     font-weight: 700!important;
-    line-height: 1.2!important;
+    line-height: 1.4!important;
 }
 p, div, span, label,.stSelectbox,.stTextInput {
-    font-size: 20px!important;
+    font-size: 18px!important;
     color: #4A4A4A!important;
 }
-/* 強制覆蓋 Streamlit 所有組件 */
-[data-testid="stExpander"] details summary p {
-    font-size: 20px!important;
-    font-weight: 500!important;
-    line-height: 1.8!important;
-}
+/* Expander 專門處理 */
 [data-testid="stExpander"] details {
     border: 2px solid #D6C0B7!important;
     border-radius: 12px!important;
     background: #E9D8C1!important;
+}
+[data-testid="stExpander"] details summary p {
+    font-size: 18px!important;
+    font-weight: 500!important;
+    line-height: 2.0!important;
 }
 input[type="text"] {
     background: #E9D8C1!important;
@@ -69,27 +69,21 @@ input[type="text"] {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>台股燈號 L10.23.14</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23.16</h1>", unsafe_allow_html=True)
 
-with st.expander("點我看使用說明書與分類評分標準", expanded=False):
-    st.markdown("""
-    ### 智慧分類評分
-    系統自動判斷商品類型，套用不同權重
+with st.expander("📖 點我看使用說明與分類評分標準", expanded=False):
+    st.markdown("### 🎯 智慧分類評分")
+    st.markdown("系統自動判斷商品類型，套用不同權重")
+    st.markdown("---")
+    st.markdown("**📊 1. 個股**：2330、2603｜年線40分最重要")
+    st.markdown("**📈 2. 原型ETF**：0050、00403A｜年線50分+MACD 20分")
+    st.markdown("**⚡ 3. 槓桿反向**：00632R、00675L｜RSI 20分+MACD 25分")
+    st.markdown("**💰 4. 債券ETF**：00679B｜年線60分，不看成交量")
+    st.markdown("**🎰 5. 權證**：03開頭6碼｜RSI 30分最關鍵")
+    st.markdown("---")
+    st.markdown("**🟢 70-100 綠燈買進**｜**🟡 40-69 黃燈觀望**｜**🔴 0-39 紅燈避開**")
 
-    | 類型 | 代號特徵 | 年線 | RSI | 量 | MACD | 均線 | 說明 |
-    | --- | --- | --- | --- |
-    | **個股** | 4碼純數字 | 40 | 15 | 15 | 15 | 15 | 2330台積電、2603長榮 |
-    | **原型ETF** | 5碼或4碼非純數 | 50 | 10 | 5 | 20 | 15 | 0050、00878、00403A |
-    | **槓桿反向** | 結尾R或L | 30 | 20 | 10 | 25 | 15 | 00632R、00675L |
-    | **債券ETF** | 結尾B | 60 | 10 | 0 | 15 | 15 | 00679B、00687B |
-    | **權證** | 6碼03開頭 | 20 | 30 | 20 | 15 | 15 | 030001起跳 |
-
-    **判斷邏輯**：ETF 看長期趨勢、權證看短線波動、債券ETF 不看成交量
-
-    **70-100 綠燈 買進訊號｜40-69 黃燈 觀望｜0-39 紅燈 避開**
-    """)
-
-st.markdown("<p style='text-align: center; font-size: 24px;'>分類評分版 | 智慧辨識個股ETF權證</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 20px;'>✨ 分類評分版｜智慧辨識個股ETF權證 ✨</p>", unsafe_allow_html=True)
 
 if 'current_stock' not in st.session_state:
     st.session_state.current_stock = st.query_params.get("stock", "")
@@ -99,32 +93,32 @@ hot_stocks = {
     "統一升級50 00403A":"00403A", "元大美債20年 00679B":"00679B",
     "元大台灣50反1 00632R":"00632R", "長榮2603":"2603", "鴻海2317":"2317"
 }
-選項 = ["選擇熱門股"] + list(hot_stocks.keys())
+選項 = ["🔥 選擇熱門股"] + list(hot_stocks.keys())
 選擇 = st.selectbox("", 選項, label_visibility="collapsed")
-if 選擇!= "選擇熱門股":
+if 選擇!= "🔥 選擇熱門股":
     st.session_state.current_stock = hot_stocks[選擇]
     st.query_params["stock"] = hot_stocks[選擇]
 
 st.text_input(
     "輸入台股代號",
-    placeholder="例：2330、0050、00403A、00679B、00632R 全部自動分類",
+    placeholder="例：2330、0050、00403A、00679B、00632R",
     key="current_stock",
     label_visibility="collapsed"
 )
 
-st.button("開始掃描", use_container_width=True, type="primary")
+st.button("⚡ 開始掃描", use_container_width=True, type="primary")
 
 def 判斷類型(stock_code):
     code = stock_code.upper()
     if len(code) == 6 and code.isdigit() and code.startswith('03'):
-        return "權證", {"年線":20, "RSI":30, "量":20, "MACD":15, "均線":15}
+        return "🎰 權證", {"年線":20, "RSI":30, "量":20, "MACD":15, "均線":15}
     if code.endswith('B'):
-        return "債券ETF", {"年線":60, "RSI":10, "量":0, "MACD":15, "均線":15}
+        return "💰 債券ETF", {"年線":60, "RSI":10, "量":0, "MACD":15, "均線":15}
     if code.endswith('R') or code.endswith('L'):
-        return "槓桿反向ETF", {"年線":30, "RSI":20, "量":10, "MACD":25, "均線":15}
+        return "⚡ 槓桿反向ETF", {"年線":30, "RSI":20, "量":10, "MACD":25, "均線":15}
     if len(code) == 5 or (len(code) == 4 and not code.isdigit()):
-        return "原型ETF", {"年線":50, "RSI":10, "量":5, "MACD":20, "均線":15}
-    return "個股", {"年線":40, "RSI":15, "量":15, "MACD":15, "均線":15}
+        return "📈 原型ETF", {"年線":50, "RSI":10, "量":5, "MACD":20, "均線":15}
+    return "📊 個股", {"年線":40, "RSI":15, "量":15, "MACD":15, "均線":15}
 
 @st.cache_data(ttl=3600)
 def get_stock_data(stock_code):
@@ -138,7 +132,7 @@ def get_stock_data(stock_code):
         try:
             df = yf.download(ticker, period="1y", progress=False, auto_adjust=True, timeout=10)
             if not df.empty and len(df) > 5:
-                市場別 = "上市/ETF" if ".TW" in ticker else "上櫃"
+                市場別 = "上市" if ".TW" in ticker else "上櫃"
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.get_level_values(0)
                 return df.dropna(), 市場別
@@ -195,24 +189,24 @@ def 計算指標(df):
 stock = st.session_state.current_stock.strip().upper()
 if stock:
     if not re.match(r'^[0-9A-Z]{4,6}$', stock):
-        st.error(f"代號錯誤：{stock}，請輸入4~6碼台股代號")
+        st.error(f"❌ 代號錯誤：{stock}，請輸入4~6碼台股代號")
         st.query_params.clear()
         st.stop()
 
     st.query_params["stock"] = stock
     類型, 權重 = 判斷類型(stock)
 
-    with st.spinner(f"抓取 {stock} 真實數據中..."):
+    with st.spinner(f"⚡ 抓取 {stock} 真實數據中..."):
         df, 市場別 = get_stock_data(stock)
 
     if df.empty or len(df) < 5:
-        st.error(f"{stock} 查無資料或資料不足5天")
-        st.info("可能原因：1. 2025年新上市商品 Yahoo 尚未收錄 2. 代號打錯 3. 已下市")
+        st.error(f"❌ {stock} 查無資料或資料不足5天")
+        st.info("💡 可能原因：1. 2025年新上市商品 Yahoo 尚未收錄 2. 代號打錯 3. 已下市")
         st.stop()
 
-    st.success(f"成功抓取 {stock} {市場別} 真實數據，共{len(df)}天｜類型：{類型}")
+    st.success(f"✅ 成功抓取 {stock} {市場別} 真實數據，共{len(df)}天｜類型：{類型}")
     if len(df) < 250:
-        st.warning(f"{stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
+        st.warning(f"⚠️ {stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
 
     df = 計算指標(df)
     latest = df.iloc[-1]
@@ -231,80 +225,80 @@ if stock:
     if 年線上方:
         加分 = 權重["年線"]
         總分 += 加分
-        分析.append(f"年線<br>+{加分}分<br>{price:.2f}>{ma250:.2f}")
+        分析.append(f"🐮 年線<br>+{加分}分<br>{price:.2f}>{ma250:.2f}")
         顏色.append("green")
     else:
-        分析.append(f"年線<br>+0分<br>{price:.2f}<{ma250:.2f}")
+        分析.append(f"🐻 年線<br>+0分<br>{price:.2f}<{ma250:.2f}")
         顏色.append("red")
 
     if rsi < 30:
         加分 = 權重["RSI"]
         總分 += 加分
-        分析.append(f"RSI {rsi:.0f}<br>超跌<br>+{加分}分")
+        分析.append(f"📊 RSI {rsi:.0f}<br>超跌<br>+{加分}分")
         顏色.append("green")
     elif rsi < 50:
         加分 = int(權重["RSI"] * 0.67)
         總分 += 加分
-        分析.append(f"RSI {rsi:.0f}<br>中性<br>+{加分}分")
+        分析.append(f"📊 RSI {rsi:.0f}<br>中性<br>+{加分}分")
         顏色.append("yellow")
     elif rsi < 70:
         加分 = int(權重["RSI"] * 0.33)
         總分 += 加分
-        分析.append(f"RSI {rsi:.0f}<br>偏高<br>+{加分}分")
+        分析.append(f"📊 RSI {rsi:.0f}<br>偏高<br>+{加分}分")
         顏色.append("yellow")
     else:
-        分析.append(f"RSI {rsi:.0f}<br>超買<br>+0分")
+        分析.append(f"📊 RSI {rsi:.0f}<br>超買<br>+0分")
         顏色.append("red")
 
     if 權重["量"] > 0:
         if vol_ratio > 1.5:
             加分 = 權重["量"]
             總分 += 加分
-            分析.append(f"量 {vol_ratio:.1f}倍<br>爆量<br>+{加分}分")
+            分析.append(f"📈 量 {vol_ratio:.1f}倍<br>爆量<br>+{加分}分")
             顏色.append("green")
         elif vol_ratio > 1.0:
             加分 = int(權重["量"] * 0.67)
             總分 += 加分
-            分析.append(f"量 {vol_ratio:.1f}倍<br>正常<br>+{加分}分")
+            分析.append(f"📈 量 {vol_ratio:.1f}倍<br>正常<br>+{加分}分")
             顏色.append("yellow")
         else:
             加分 = int(權重["量"] * 0.33)
             總分 += 加分
-            分析.append(f"量 {vol_ratio:.1f}倍<br>量縮<br>+{加分}分")
+            分析.append(f"📈 量 {vol_ratio:.1f}倍<br>量縮<br>+{加分}分")
             顏色.append("red")
     else:
-        分析.append(f"成交量<br>不適用<br>+0分")
+        分析.append(f"📈 成交量<br>不適用<br>+0分")
         顏色.append("yellow")
 
     if macd_hist > 0:
         加分 = 權重["MACD"]
         總分 += 加分
-        分析.append(f"MACD正<br>+{加分}分")
+        分析.append(f"📉 MACD正<br>+{加分}分")
         顏色.append("green")
     else:
-        分析.append(f"MACD負<br>+0分")
+        分析.append(f"📉 MACD負<br>+0分")
         顏色.append("red")
 
     if price > ma20 > ma60:
         加分 = 權重["均線"]
         總分 += 加分
-        分析.append(f"短多頭<br>+{加分}分")
+        分析.append(f"🚀 短多頭<br>+{加分}分")
         顏色.append("green")
     elif price > ma20:
         加分 = int(權重["均線"] * 0.67)
         總分 += 加分
-        分析.append(f"偏多<br>+{加分}分")
+        分析.append(f"🚀 偏多<br>+{加分}分")
         顏色.append("yellow")
     else:
-        分析.append(f"偏空<br>+0分")
+        分析.append(f"🚀 偏空<br>+0分")
         顏色.append("red")
 
     if 總分 >= 70:
-        邊框, 建議 = "light-green", "綠燈 買進訊號"
+        邊框, 建議 = "light-green", "🟢 綠燈 買進訊號"
     elif 總分 >= 40:
-        邊框, 建議 = "light-yellow", "黃燈 觀望"
+        邊框, 建議 = "light-yellow", "🟡 黃燈 觀望"
     else:
-        邊框, 建議 = "light-red", "紅燈 避開"
+        邊框, 建議 = "light-red", "🔴 紅燈 避開"
 
     st.markdown(f'<div class="light-box {邊框}"><div class="score-big">{總分}</div><div class="title-big">{建議}</div><div class="type-tag">類型：{類型}</div></div>', unsafe_allow_html=True)
 
@@ -314,7 +308,7 @@ if stock:
             st.markdown(f'<div class="card-box card-{卡片顏色}">{文案}</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.subheader(f"{stock} {市場別} K線圖")
+    st.subheader(f"📊 {stock} {市場別} K線圖")
 
     df_plot = df.tail(250).copy()
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
@@ -335,7 +329,7 @@ if stock:
     fig.update_yaxes(title_text="成交量", row=2, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("數據驗證表")
+    st.subheader("🔍 數據驗證表")
     驗證表 = df.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
     驗證表.index = 驗證表.index.strftime('%Y-%m-%d')
     st.dataframe(驗證表, use_container_width=True)
