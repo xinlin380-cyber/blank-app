@@ -32,16 +32,14 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.3</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23.5</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 24px;'>穩定版 | 上市上櫃興櫃全支援+K線+不跳頁</p>", unsafe_allow_html=True)
 
-if 'stock_code' not in st.session_state:
-    st.session_state.stock_code = st.query_params.get("stock", "")
+# 1. 初始化，從網址讀取
+if 'current_stock' not in st.session_state:
+    st.session_state.current_stock = st.query_params.get("stock", "")
 
-def set_stock(code):
-    st.session_state.stock_code = code
-    st.query_params["stock"] = code
-
+# 2. 熱門標籤，直接改 session_state，不用 rerun
 hot_stocks = {
     "台積電2330":"2330", "0050":"0050", "00878":"00878",
     "長榮2603":"2603", "鴻海2317":"2317", "易華電6428":"6428",
@@ -50,52 +48,39 @@ hot_stocks = {
 選項 = ["🔥 選擇熱門股"] + list(hot_stocks.keys())
 選擇 = st.selectbox("", 選項, label_visibility="collapsed")
 if 選擇!= "🔥 選擇熱門股":
-    set_stock(hot_stocks[選擇])
-    st.rerun()
+    st.session_state.current_stock = hot_stocks[選擇]
+    st.query_params["stock"] = hot_stocks[選擇]
 
-def run_scan():
-    code = st.session_state.input_box.strip()
-    if code:
-        st.session_state.stock_code = code
-        st.query_params["stock"] = code
-
+# 3. 輸入框，key綁定 current_stock，按 Enter 就直接觸發
 st.text_input(
     "輸入任意台股代號",
     placeholder="例如：2330上市、6428上櫃、3450興櫃",
-    key="input_box",
-    value=st.session_state.stock_code,
-    on_change=run_scan,
+    key="current_stock",
     label_visibility="collapsed"
 )
 
-if st.button("⚡ 開始掃描", use_container_width=True, type="primary"):
-    run_scan()
-    st.rerun()
+# 4. 按鈕現在只是裝飾，輸入框 Enter 就會跑了
+st.button("⚡ 開始掃描", use_container_width=True, type="primary")
 
-@st.cache_data(ttl=3600) # 正確位置：貼在 def 上面
+@st.cache_data(ttl=3600)
 def get_stock_data(stock_code):
     stock = stock_code.replace('.TW','').replace('.TWO','').strip()
     df = pd.DataFrame()
     市場別 = ""
 
-    # 1. 上市.TW
     try:
         ticker = f"{stock}.TW"
         df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
-        if not df.empty and len(df) > 20:
-            市場別 = "上市"
+        if not df.empty and len(df) > 20: 市場別 = "上市"
     except: pass
 
-    # 2. 上櫃.TWO
     if df.empty:
         try:
             ticker = f"{stock}.TWO"
             df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
-            if not df.empty and len(df) > 20:
-                市場別 = "上櫃"
+            if not df.empty and len(df) > 20: 市場別 = "上櫃"
         except: pass
 
-    # 3. 興櫃用 FinMind API
     if df.empty:
         try:
             end_date = datetime.now().strftime('%Y-%m-%d')
@@ -141,8 +126,10 @@ def 計算指標(df):
     df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
     return df.ffill()
 
-if st.session_state.stock_code:
-    stock = st.session_state.stock_code
+# 5. 統一用 st.session_state.current_stock，改了就立刻生效
+stock = st.session_state.current_stock.strip()
+if stock:
+    st.query_params["stock"] = stock # 保持網址同步
     with st.spinner(f"抓取 {stock} 真實數據中..."):
         df, 市場別 = get_stock_data(stock)
 
