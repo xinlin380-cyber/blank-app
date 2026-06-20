@@ -15,8 +15,8 @@ st.markdown("""
 <style>
 .stApp {background: #F8F3E9;}
 .block-container {padding-top: 1rem; max-width: 1200px;}
-* {color: #4A4A4A!important; font-family: 'Noto Sans TC', sans-serif!important; font-weight: 500!important;}
-h1 {font-size: 48px!important; text-align: center!important; margin-bottom: 0!important; color: #4A4A4A!important;}
+* {color: #4A4A4A!important; font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif!important; font-weight: 400!important; line-height: 1.6!important;}
+h1 {font-size: 48px!important; text-align: center!important; margin-bottom: 0!important; color: #4A4A4A!important; font-weight: 700!important; line-height: 1.2!important;}
 p,div,span {font-size: 20px!important;}
 input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; border: 3px solid #D6C0B7!important; font-size: 28px!important; text-align: center!important; padding: 16px!important; border-radius: 12px!important;}
 .light-box {padding: 50px; border-radius: 25px; text-align: center; margin: 35px 0; border: 8px solid;}
@@ -30,10 +30,11 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 .card-yellow {border-color: #D6C07C;}
 .card-red {border-color: #E88C8C;}
 .card-box * {color: #4A4A4A!important; font-size: 24px!important; font-weight: 700!important; line-height: 1.5!important;}
+.streamlit-expanderHeader {font-size: 20px!important; font-weight: 500!important;}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.11</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23.12</h1>", unsafe_allow_html=True)
 
 with st.expander("點我看使用說明書 & 分數算法", expanded=False):
     st.markdown("""
@@ -73,9 +74,9 @@ hot_stocks = {
     "長榮2603":"2603", "鴻海2317":"2317", "易華電6428":"6428",
     "00940":"00940", "00919":"00919"
 }
-選項 = ["🔥 選擇熱門股"] + list(hot_stocks.keys())
+選項 = ["選擇熱門股"] + list(hot_stocks.keys())
 選擇 = st.selectbox("", 選項, label_visibility="collapsed")
-if 選擇!= "🔥 選擇熱門股":
+if 選擇!= "選擇熱門股":
     st.session_state.current_stock = hot_stocks[選擇]
     st.query_params["stock"] = hot_stocks[選擇]
 
@@ -86,7 +87,7 @@ st.text_input(
     label_visibility="collapsed"
 )
 
-st.button("⚡ 開始掃描", use_container_width=True, type="primary")
+st.button("開始掃描", use_container_width=True, type="primary")
 
 @st.cache_data(ttl=3600)
 def get_stock_data(stock_code):
@@ -94,7 +95,6 @@ def get_stock_data(stock_code):
     df = pd.DataFrame()
     市場別 = ""
 
-    # 規則：台股全部先試.TW，上市櫃ETF都在這
     試算清單 = [f"{stock}.TW", f"{stock}.TWO"]
 
     for ticker in 試算清單:
@@ -108,7 +108,6 @@ def get_stock_data(stock_code):
         except:
             continue
 
-    # 純數字代號額外試興櫃 FinMind
     if stock.isdigit():
         try:
             end_date = datetime.now().strftime('%Y-%m-%d')
@@ -158,7 +157,6 @@ def 計算指標(df):
 
 stock = st.session_state.current_stock.strip().upper()
 if stock:
-    # 支援 4~6 碼英數字，涵蓋股票ETF權證
     if not re.match(r'^[0-9A-Z]{4,6}$', stock):
         st.error(f"❌ 代號錯誤：{stock}，請輸入4~6碼台股代號，例如 2330、0050、00403A")
         st.query_params.clear()
@@ -193,59 +191,59 @@ if stock:
 
     if 年線上方:
         總分 += 40
-        分析.append(f"🐮 大多頭<br>+40分<br>股價{price:.2f}>年線{ma250:.2f}")
+        分析.append(f"大多頭<br>+40分<br>股價{price:.2f}>年線{ma250:.2f}")
         顏色.append("green")
     else:
-        分析.append(f"🐻 空頭<br>+0分<br>股價{price:.2f}<年線{ma250:.2f}")
+        分析.append(f"空頭<br>+0分<br>股價{price:.2f}<年線{ma250:.2f}")
         顏色.append("red")
 
     if rsi < 30:
         總分 += 15
-        分析.append(f"📊 RSI {rsi:.0f}<br>超跌<br>+15分")
+        分析.append(f"RSI {rsi:.0f}<br>超跌<br>+15分")
         顏色.append("green")
     elif rsi < 50:
         總分 += 10
-        分析.append(f"📊 RSI {rsi:.0f}<br>中性<br>+10分")
+        分析.append(f"RSI {rsi:.0f}<br>中性<br>+10分")
         顏色.append("yellow")
     elif rsi < 70:
         總分 += 5
-        分析.append(f"📊 RSI {rsi:.0f}<br>偏高<br>+5分")
+        分析.append(f"RSI {rsi:.0f}<br>偏高<br>+5分")
         顏色.append("yellow")
     else:
-        分析.append(f"📊 RSI {rsi:.0f}<br>超買<br>+0分")
+        分析.append(f"RSI {rsi:.0f}<br>超買<br>+0分")
         顏色.append("red")
 
     if vol_ratio > 1.5:
         總分 += 15
-        分析.append(f"📈 量 {vol_ratio:.1f}倍<br>爆量<br>+15分")
+        分析.append(f"量 {vol_ratio:.1f}倍<br>爆量<br>+15分")
         顏色.append("green")
     elif vol_ratio > 1.0:
         總分 += 10
-        分析.append(f"📈 量 {vol_ratio:.1f}倍<br>正常<br>+10分")
+        分析.append(f"量 {vol_ratio:.1f}倍<br>正常<br>+10分")
         顏色.append("yellow")
     else:
         總分 += 5
-        分析.append(f"📈 量 {vol_ratio:.1f}倍<br>量縮<br>+5分")
+        分析.append(f"量 {vol_ratio:.1f}倍<br>量縮<br>+5分")
         顏色.append("red")
 
     if macd_hist > 0:
         總分 += 15
-        分析.append(f"📉 MACD正<br>+15分")
+        分析.append(f"MACD正<br>+15分")
         顏色.append("green")
     else:
-        分析.append(f"📉 MACD負<br>+0分")
+        分析.append(f"MACD負<br>+0分")
         顏色.append("red")
 
     if price > ma20 > ma60:
         總分 += 15
-        分析.append(f"🚀 短多頭<br>+15分")
+        分析.append(f"短多頭<br>+15分")
         顏色.append("green")
     elif price > ma20:
         總分 += 10
-        分析.append(f"🚀 偏多<br>+10分")
+        分析.append(f"偏多<br>+10分")
         顏色.append("yellow")
     else:
-        分析.append(f"🚀 偏空<br>+0分")
+        分析.append(f"偏空<br>+0分")
         顏色.append("red")
 
     if 總分 >= 70:
@@ -263,7 +261,7 @@ if stock:
             st.markdown(f'<div class="card-box card-{卡片顏色}">{文案}</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.subheader(f"📈 {stock} {市場別} K線圖")
+    st.subheader(f"{stock} {市場別} K線圖")
 
     df_plot = df.tail(250).copy()
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
@@ -284,7 +282,7 @@ if stock:
     fig.update_yaxes(title_text="成交量", row=2, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("🔍 數據驗證表")
+    st.subheader("數據驗證表")
     驗證表 = df.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
     驗證表.index = 驗證表.index.strftime('%Y-%m-%d')
     st.dataframe(驗證表, use_container_width=True)
