@@ -63,68 +63,83 @@ input[type="text"] {
 .card-green {border-color: #8CB88C;}
 .card-yellow {border-color: #D6C07C;}
 .card-red {border-color: #E88C8C;}
-.card-box * {color: #4A4A4A!important; font-size: 24px!important; font-weight: 700!important; line-height: 1.5!important;}
+.card-box * {color: #4A4A4A!important; font-size: 22px!important; font-weight: 700!important; line-height: 1.5!important;}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.17</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23.19</h1>", unsafe_allow_html=True)
 
-with st.expander("📖 點我看完整使用說明書", expanded=False):
-    st.markdown("### 🚀 怎麼用，3 步驟")
+with st.expander("📖 點我看完整使用說明書，新手必讀", expanded=False):
+    st.markdown("### 🚀 怎麼用，3 步驟超簡單")
     st.markdown("")
-    st.markdown("**1. 輸入代號**：4~6 碼都可，如 `2330` `0050` `00403A` `00679B` `00632R`，按 Enter 就跑")
+    st.markdown("**1. 輸入代號**：打 4~6 碼股票代號，如 `2330` 台積電、`0050` 元大台灣50，按 Enter 就跑")
     st.markdown("")
-    st.markdown("**2. 熱門股**：點上方「🔥選擇熱門股」一鍵帶入，懶人專用")
+    st.markdown("**2. 熱門股**：點上方「🔥選擇熱門股」直接選，不用記代號")
     st.markdown("")
-    st.markdown("**3. 看燈號**：大數字是總分，下面 5 張卡片是明細。綠燈可買、黃燈觀望、紅燈避開")
-    st.markdown("")
-    st.markdown("---")
-    st.markdown("")
-    st.markdown("### 🎯 智慧分類評分，5 種標準")
-    st.markdown("")
-    st.markdown("**📊 1. 個股**：2330、2603、6428")
-    st.markdown("權重：年線 40｜RSI 15｜量 15｜MACD 15｜均線 15")
-    st.markdown("說明：傳統標準，趨勢最重要")
-    st.markdown("")
-    st.markdown("**📈 2. 原型ETF**：0050、00878、00403A")
-    st.markdown("權重：年線 50｜RSI 10｜量 5｜MACD 20｜均線 15")
-    st.markdown("說明：ETF 跟大盤走，年線 + MACD 動能最準")
-    st.markdown("")
-    st.markdown("**⚡ 3. 槓桿反向**：00632R、00675L")
-    st.markdown("權重：年線 30｜RSI 20｜量 10｜MACD 25｜均線 15")
-    st.markdown("說明：短線交易，RSI + MACD 權重拉高")
-    st.markdown("")
-    st.markdown("**💰 4. 債券ETF**：00679B、00687B")
-    st.markdown("權重：年線 60｜RSI 10｜量 0｜MACD 15｜均線 15")
-    st.markdown("說明：債券不看成交量，年線定生死")
-    st.markdown("")
-    st.markdown("**🎰 5. 權證**：03開頭6碼")
-    st.markdown("權重：年線 20｜RSI 30｜量 20｜MACD 15｜均線 15")
-    st.markdown("說明：波動大，RSI + 成交量最關鍵")
+    st.markdown("**3. 看結果**：大數字是總分 0-100 分。綠色可以買、黃色再看看、紅色先不要碰")
     st.markdown("")
     st.markdown("---")
     st.markdown("")
-    st.markdown("### 📊 燈號標準")
+    st.markdown("### 📚 名詞解釋，講人話版本")
     st.markdown("")
-    st.markdown("**🟢 70-100 分 綠燈**：買進訊號，技術面全面轉強")
+    st.markdown("**🐮 上漲趨勢 / 大家在買**：以前叫多頭。股價比過去250天平均還高，代表最近買的人多，大家看好")
     st.markdown("")
-    st.markdown("**🟡 40-69 分 黃燈**：觀望，多空不明等表態")
+    st.markdown("**🐻 下跌趨勢 / 大家在賣**：以前叫空頭。股價比過去250天平均還低，代表最近賣的人多，大家看壞")
     st.markdown("")
-    st.markdown("**🔴 0-39 分 紅燈**：避開，技術面偏弱")
+    st.markdown("**年線**：過去250個交易日的平均股價。站上=長期往上走，跌破=長期往下走")
+    st.markdown("")
+    st.markdown("**RSI 強弱指標**：看這支股票最近有沒有漲太多或跌太多")
+    st.markdown("→ 數字 <30：跌過頭了，可能會反彈")
+    st.markdown("→ 數字 30-70：正常範圍")
+    st.markdown("→ 數字 >70：漲過頭了，可能會回檔")
+    st.markdown("")
+    st.markdown("**MACD 動能**：看這支股票現在有沒有力氣繼續漲")
+    st.markdown("→ 正數：有力氣，比較會漲")
+    st.markdown("→ 負數：沒力氣，比較會跌")
+    st.markdown("")
+    st.markdown("**爆量**：今天很多人買賣，成交量是平常的1.5倍以上。通常大戶進場了")
+    st.markdown("")
+    st.markdown("**量縮**：今天沒什麼人買賣，成交量比平常少。大家在觀望")
+    st.markdown("")
+    st.markdown("**短期均線**：20天和60天的平均股價。股價在兩條線上面=短期走勢強")
     st.markdown("")
     st.markdown("---")
     st.markdown("")
-    st.markdown("### ⚠️ 注意事項")
+    st.markdown("### 🎯 為什麼不同股票分數標準不一樣？")
     st.markdown("")
-    st.markdown("1. **新上市商品**：2025年新ETF如00403A，Yahoo可能延遲1-2週才有資料")
+    st.markdown("**📊 個股**：台積電、長榮這種公司股。看長期趨勢最重要，所以年線佔40分")
     st.markdown("")
-    st.markdown("2. **年線不足**：上市未滿250天，年線不準但會繼續算其他4項")
+    st.markdown("**📈 一般ETF**：0050、00878這種。跟大盤走，看長期趨勢+動能，年線佔50分")
     st.markdown("")
-    st.markdown("3. **非投資建議**：這是技術分析輔助工具，請自負盈虧")
+    st.markdown("**⚡ 槓桿ETF**：00632R這種放大版。適合短線，看動能最重要，MACD佔25分")
     st.markdown("")
-    st.markdown("**資料來源**：Yahoo Finance 上市.TW + 上櫃.TWO｜興櫃用 FinMind API")
+    st.markdown("**💰 債券ETF**：00679B這種。債券沒什麼人在炒，成交量不重要，所以不看量")
+    st.markdown("")
+    st.markdown("**🎰 權證**：賭博性質。漲跌很快，所以看短期超買超賣，RSI佔30分")
+    st.markdown("")
+    st.markdown("---")
+    st.markdown("")
+    st.markdown("### 📊 燈號怎麼看")
+    st.markdown("")
+    st.markdown("**🟢 70-100 分 綠燈**：技術面全部轉好，買的人多，可以考慮進場")
+    st.markdown("")
+    st.markdown("**🟡 40-69 分 黃燈**：好壞參半，有人買有人賣，先觀望等方向明確")
+    st.markdown("")
+    st.markdown("**🔴 0-39 分 紅燈**：技術面偏弱，賣的人多，先避開不要接刀")
+    st.markdown("")
+    st.markdown("---")
+    st.markdown("")
+    st.markdown("### ⚠️ 重要提醒")
+    st.markdown("")
+    st.markdown("1. **新上市商品**：2025年新ETF如00403A，資料可能不滿250天，年線會不準")
+    st.markdown("")
+    st.markdown("2. **這不是明牌**：只是技術分析工具，幫你看現在買氣強不強。投資一定有風險")
+    st.markdown("")
+    st.markdown("3. **不要All in**：就算綠燈也分批買，黃燈紅燈就先不要碰")
+    st.markdown("")
+    st.markdown("**資料來源**：Yahoo Finance 免費公開資料")
 
-st.markdown("<p style='text-align: center; font-size: 20px;'>✨ 分類評分版｜智慧辨識個股ETF權證 ✨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 20px;'>✨ 白話文版｜新手友善，看不懂算我輸 ✨</p>", unsafe_allow_html=True)
 
 if 'current_stock' not in st.session_state:
     st.session_state.current_stock = st.query_params.get("stock", "")
@@ -158,7 +173,7 @@ def 判斷類型(stock_code):
     if code.endswith('R') or code.endswith('L'):
         return "⚡ 槓桿反向ETF", {"年線":30, "RSI":20, "量":10, "MACD":25, "均線":15}
     if len(code) == 5 or (len(code) == 4 and not code.isdigit()):
-        return "📈 原型ETF", {"年線":50, "RSI":10, "量":5, "MACD":20, "均線":15}
+        return "📈 一般ETF", {"年線":50, "RSI":10, "量":5, "MACD":20, "均線":15}
     return "📊 個股", {"年線":40, "RSI":15, "量":15, "MACD":15, "均線":15}
 
 @st.cache_data(ttl=3600)
@@ -247,7 +262,7 @@ if stock:
 
     st.success(f"✅ 成功抓取 {stock} {市場別} 真實數據，共{len(df)}天｜類型：{類型}")
     if len(df) < 250:
-        st.warning(f"⚠️ {stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
+        st.warning(f"⚠️ {stock} 只有{len(df)}天資料，長期趨勢會不準，但繼續分析")
 
     df = 計算指標(df)
     latest = df.iloc[-1]
@@ -266,80 +281,80 @@ if stock:
     if 年線上方:
         加分 = 權重["年線"]
         總分 += 加分
-        分析.append(f"🐮 年線<br>+{加分}分<br>{price:.2f}>{ma250:.2f}")
+        分析.append(f"🐮 趨勢向上<br>+{加分}分<br>比長期平均高")
         顏色.append("green")
     else:
-        分析.append(f"🐻 年線<br>+0分<br>{price:.2f}<{ma250:.2f}")
+        分析.append(f"🐻 趨勢向下<br>+0分<br>比長期平均低")
         顏色.append("red")
 
     if rsi < 30:
         加分 = 權重["RSI"]
         總分 += 加分
-        分析.append(f"📊 RSI {rsi:.0f}<br>超跌<br>+{加分}分")
+        分析.append(f"📊 跌過頭<br>+{加分}分<br>可能反彈")
         顏色.append("green")
     elif rsi < 50:
         加分 = int(權重["RSI"] * 0.67)
         總分 += 加分
-        分析.append(f"📊 RSI {rsi:.0f}<br>中性<br>+{加分}分")
+        分析.append(f"📊 強弱中性<br>+{加分}分<br>正常範圍")
         顏色.append("yellow")
     elif rsi < 70:
         加分 = int(權重["RSI"] * 0.33)
         總分 += 加分
-        分析.append(f"📊 RSI {rsi:.0f}<br>偏高<br>+{加分}分")
+        分析.append(f"📊 漲偏高<br>+{加分}分<br>小心回檔")
         顏色.append("yellow")
     else:
-        分析.append(f"📊 RSI {rsi:.0f}<br>超買<br>+0分")
+        分析.append(f"📊 漲過頭<br>+0分<br>風險高")
         顏色.append("red")
 
     if 權重["量"] > 0:
         if vol_ratio > 1.5:
             加分 = 權重["量"]
             總分 += 加分
-            分析.append(f"📈 量 {vol_ratio:.1f}倍<br>爆量<br>+{加分}分")
+            分析.append(f"📈 大家在買<br>+{加分}分<br>量是平常{vol_ratio:.1f}倍")
             顏色.append("green")
         elif vol_ratio > 1.0:
             加分 = int(權重["量"] * 0.67)
             總分 += 加分
-            分析.append(f"📈 量 {vol_ratio:.1f}倍<br>正常<br>+{加分}分")
+            分析.append(f"📈 買氣正常<br>+{加分}分<br>量是平常{vol_ratio:.1f}倍")
             顏色.append("yellow")
         else:
             加分 = int(權重["量"] * 0.33)
             總分 += 加分
-            分析.append(f"📈 量 {vol_ratio:.1f}倍<br>量縮<br>+{加分}分")
+            分析.append(f"📈 沒人買賣<br>+{加分}分<br>量是平常{vol_ratio:.1f}倍")
             顏色.append("red")
     else:
-        分析.append(f"📈 成交量<br>不適用<br>+0分")
+        分析.append(f"📈 成交量<br>不重要<br>+0分")
         顏色.append("yellow")
 
     if macd_hist > 0:
         加分 = 權重["MACD"]
         總分 += 加分
-        分析.append(f"📉 MACD正<br>+{加分}分")
+        分析.append(f"📉 有力氣漲<br>+{加分}分")
         顏色.append("green")
     else:
-        分析.append(f"📉 MACD負<br>+0分")
+        分析.append(f"📉 沒力氣漲<br>+0分")
         顏色.append("red")
 
     if price > ma20 > ma60:
         加分 = 權重["均線"]
         總分 += 加分
-        分析.append(f"🚀 短多頭<br>+{加分}分")
+        分析.append(f"🚀 短期很強<br>+{加分}分")
         顏色.append("green")
     elif price > ma20:
         加分 = int(權重["均線"] * 0.67)
         總分 += 加分
-        分析.append(f"🚀 偏多<br>+{加分}分")
+        分析.append(f"🚀 短期偏強<br>+{加分}分")
         顏色.append("yellow")
     else:
-        分析.append(f"🚀 偏空<br>+0分")
+        分析.append(f"🚀 短期偏弱<br>+0分")
         顏色.append("red")
 
     if 總分 >= 70:
-        邊框, 建議 = "light-green", "🟢 綠燈 買進訊號"
+        邊框, 建議 = "light-green", "🟢 綠燈 可以買"
     elif 總分 >= 40:
-        邊框, 建議 = "light-yellow", "🟡 黃燈 觀望"
+        邊框, 建議 = "light-yellow", "🟡 黃燈 先看看"
     else:
-        邊框, 建議 = "light-red", "🔴 紅燈 避開"
+        邊框, 建議 = "light-red", "🔴 紅燈 不要碰"
 
     st.markdown(f'<div class="light-box {邊框}"><div class="score-big">{總分}</div><div class="title-big">{建議}</div><div class="type-tag">類型：{類型}</div></div>', unsafe_allow_html=True)
 
@@ -356,8 +371,8 @@ if stock:
 
     fig.add_trace(go.Candlestick(x=df_plot.index, open=df_plot['Open'], high=df_plot['High'], low=df_plot['Low'], close=df_plot['Close'],
                                  increasing_line_color='#E88C8C', decreasing_line_color='#8CB88C', name='K線'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA20'], line=dict(color='#D6C07C', width=1), name='MA20'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA60'], line=dict(color='#8CB88C', width=1), name='MA60'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA20'], line=dict(color='#D6C07C', width=1), name='20日線'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA60'], line=dict(color='#8CB88C', width=1), name='60日線'), row=1, col=1)
     if ma250 > 0:
         fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA250'], line=dict(color='#4A4A4A', width=2), name='年線'), row=1, col=1)
 
