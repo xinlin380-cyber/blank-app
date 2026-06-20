@@ -82,9 +82,9 @@ with st.expander("📖 點我看完整使用說明書，新手必讀", expanded=
     st.markdown("")
     st.markdown("### 📚 名詞解釋，講人話版本")
     st.markdown("")
-    st.markdown("**🐮 上漲趨勢 / 大家在買**：以前叫多頭。股價比過去250天平均還高，代表最近買的人多，大家看好")
+    st.markdown("**🐮 上漲趨勢 / 大家在買**:多頭。股價比過去250天平均還高，代表最近買的人多，大家看好")
     st.markdown("")
-    st.markdown("**🐻 下跌趨勢 / 大家在賣**：以前叫空頭。股價比過去250天平均還低，代表最近賣的人多，大家看壞")
+    st.markdown("**🐻 下跌趨勢 / 大家在賣**：空頭。股價比過去250天平均還低，代表最近賣的人多，大家看壞")
     st.markdown("")
     st.markdown("**年線**：過去250個交易日的平均股價。站上=長期往上走，跌破=長期往下走")
     st.markdown("")
@@ -139,7 +139,7 @@ with st.expander("📖 點我看完整使用說明書，新手必讀", expanded=
     st.markdown("")
     st.markdown("**資料來源**：Yahoo Finance 免費公開資料")
 
-st.markdown("<p style='text-align: center; font-size: 20px;'>✨ 白話文版｜新手友善，看不懂算我輸 ✨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 20px;'>✨ 白話文版｜新手友善✨</p>", unsafe_allow_html=True)
 
 if 'current_stock' not in st.session_state:
     st.session_state.current_stock = st.query_params.get("stock", "")
