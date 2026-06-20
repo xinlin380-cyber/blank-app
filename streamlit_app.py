@@ -13,12 +13,47 @@ st.set_page_config(page_title="台股燈號", page_icon="💡", layout="wide")
 
 st.markdown("""
 <style>
+/* 全域字體修復，解決疊字問題 */
+html, body, [class*="css"] {
+    font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif!important;
+    line-height: 1.8!important;
+    font-weight: 400!important;
+}
 .stApp {background: #F8F3E9;}
 .block-container {padding-top: 1rem; max-width: 1200px;}
-* {color: #4A4A4A!important; font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif!important; font-weight: 400!important; line-height: 1.6!important;}
-h1 {font-size: 48px!important; text-align: center!important; margin-bottom: 0!important; color: #4A4A4A!important; font-weight: 700!important; line-height: 1.2!important;}
-p,div,span {font-size: 20px!important;}
-input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; border: 3px solid #D6C0B7!important; font-size: 28px!important; text-align: center!important; padding: 16px!important; border-radius: 12px!important;}
+h1 {
+    font-size: 48px!important;
+    text-align: center!important;
+    margin-bottom: 0!important;
+    color: #4A4A4A!important;
+    font-weight: 700!important;
+    line-height: 1.2!important;
+}
+p, div, span, label,.stSelectbox,.stTextInput {
+    font-size: 20px!important;
+    color: #4A4A4A!important;
+}
+/* 強制覆蓋 Streamlit 所有組件 */
+[data-testid="stExpander"] details summary p {
+    font-size: 20px!important;
+    font-weight: 500!important;
+    line-height: 1.8!important;
+}
+[data-testid="stExpander"] details {
+    border: 2px solid #D6C0B7!important;
+    border-radius: 12px!important;
+    background: #E9D8C1!important;
+}
+input[type="text"] {
+    background: #E9D8C1!important;
+    color: #4A4A4A!important;
+    border: 3px solid #D6C0B7!important;
+    font-size: 28px!important;
+    text-align: center!important;
+    padding: 16px!important;
+    border-radius: 12px!important;
+    line-height: 1.4!important;
+}
 .light-box {padding: 50px; border-radius: 25px; text-align: center; margin: 35px 0; border: 8px solid;}
 .light-green {border-color: #8CB88C; background: #D6C0B7;}
 .light-yellow {border-color: #D6C07C; background: #D6C0B7;}
@@ -31,13 +66,12 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 .card-yellow {border-color: #D6C07C;}
 .card-red {border-color: #E88C8C;}
 .card-box * {color: #4A4A4A!important; font-size: 24px!important; font-weight: 700!important; line-height: 1.5!important;}
-.streamlit-expanderHeader {font-size: 20px!important; font-weight: 500!important;}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.13</h1>", unsafe_allow_html=True)
+st.markdown("<h1>台股燈號 L10.23.14</h1>", unsafe_allow_html=True)
 
-with st.expander("點我看使用說明書 & 分類評分標準", expanded=False):
+with st.expander("點我看使用說明書與分類評分標準", expanded=False):
     st.markdown("""
     ### 智慧分類評分
     系統自動判斷商品類型，套用不同權重
@@ -45,10 +79,10 @@ with st.expander("點我看使用說明書 & 分類評分標準", expanded=False
     | 類型 | 代號特徵 | 年線 | RSI | 量 | MACD | 均線 | 說明 |
     | --- | --- | --- | --- |
     | **個股** | 4碼純數字 | 40 | 15 | 15 | 15 | 15 | 2330台積電、2603長榮 |
-    | **原型ETF** | 4碼/5碼無RLB | 50 | 10 | 5 | 20 | 15 | 0050、00878、00403A |
+    | **原型ETF** | 5碼或4碼非純數 | 50 | 10 | 5 | 20 | 15 | 0050、00878、00403A |
     | **槓桿反向** | 結尾R或L | 30 | 20 | 10 | 25 | 15 | 00632R、00675L |
     | **債券ETF** | 結尾B | 60 | 10 | 0 | 15 | 15 | 00679B、00687B |
-    | **權證** | 6碼數字 | 20 | 30 | 20 | 15 | 15 | 030001起跳 |
+    | **權證** | 6碼03開頭 | 20 | 30 | 20 | 15 | 15 | 030001起跳 |
 
     **判斷邏輯**：ETF 看長期趨勢、權證看短線波動、債券ETF 不看成交量
 
@@ -82,19 +116,14 @@ st.button("開始掃描", use_container_width=True, type="primary")
 
 def 判斷類型(stock_code):
     code = stock_code.upper()
-    # 權證 6碼純數字，03開頭
     if len(code) == 6 and code.isdigit() and code.startswith('03'):
         return "權證", {"年線":20, "RSI":30, "量":20, "MACD":15, "均線":15}
-    # 債券ETF 結尾B
     if code.endswith('B'):
         return "債券ETF", {"年線":60, "RSI":10, "量":0, "MACD":15, "均線":15}
-    # 槓桿反向ETF 結尾R或L
     if code.endswith('R') or code.endswith('L'):
         return "槓桿反向ETF", {"年線":30, "RSI":20, "量":10, "MACD":25, "均線":15}
-    # 原型ETF：5碼或4碼但非純個股
     if len(code) == 5 or (len(code) == 4 and not code.isdigit()):
         return "原型ETF", {"年線":50, "RSI":10, "量":5, "MACD":20, "均線":15}
-    # 預設個股
     return "個股", {"年線":40, "RSI":15, "量":15, "MACD":15, "均線":15}
 
 @st.cache_data(ttl=3600)
@@ -166,7 +195,7 @@ def 計算指標(df):
 stock = st.session_state.current_stock.strip().upper()
 if stock:
     if not re.match(r'^[0-9A-Z]{4,6}$', stock):
-        st.error(f"❌ 代號錯誤：{stock}，請輸入4~6碼台股代號")
+        st.error(f"代號錯誤：{stock}，請輸入4~6碼台股代號")
         st.query_params.clear()
         st.stop()
 
@@ -177,13 +206,13 @@ if stock:
         df, 市場別 = get_stock_data(stock)
 
     if df.empty or len(df) < 5:
-        st.error(f"❌ {stock} 查無資料或資料不足5天")
-        st.info("💡 可能原因：1. 2025年新上市商品 Yahoo 尚未收錄 2. 代號打錯 3. 已下市")
+        st.error(f"{stock} 查無資料或資料不足5天")
+        st.info("可能原因：1. 2025年新上市商品 Yahoo 尚未收錄 2. 代號打錯 3. 已下市")
         st.stop()
 
-    st.success(f"✅ 成功抓取 {stock} {市場別} 真實數據，共{len(df)}天｜類型：{類型}")
+    st.success(f"成功抓取 {stock} {市場別} 真實數據，共{len(df)}天｜類型：{類型}")
     if len(df) < 250:
-        st.warning(f"⚠️ {stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
+        st.warning(f"{stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
 
     df = 計算指標(df)
     latest = df.iloc[-1]
@@ -199,7 +228,6 @@ if stock:
     年線上方 = price > ma250 if ma250 > 0 else False
     總分, 分析, 顏色 = 0, [], []
 
-    # 1. 年線
     if 年線上方:
         加分 = 權重["年線"]
         總分 += 加分
@@ -209,7 +237,6 @@ if stock:
         分析.append(f"年線<br>+0分<br>{price:.2f}<{ma250:.2f}")
         顏色.append("red")
 
-    # 2. RSI
     if rsi < 30:
         加分 = 權重["RSI"]
         總分 += 加分
@@ -229,7 +256,6 @@ if stock:
         分析.append(f"RSI {rsi:.0f}<br>超買<br>+0分")
         顏色.append("red")
 
-    # 3. 成交量
     if 權重["量"] > 0:
         if vol_ratio > 1.5:
             加分 = 權重["量"]
@@ -250,7 +276,6 @@ if stock:
         分析.append(f"成交量<br>不適用<br>+0分")
         顏色.append("yellow")
 
-    # 4. MACD
     if macd_hist > 0:
         加分 = 權重["MACD"]
         總分 += 加分
@@ -260,7 +285,6 @@ if stock:
         分析.append(f"MACD負<br>+0分")
         顏色.append("red")
 
-    # 5. 均線
     if price > ma20 > ma60:
         加分 = 權重["均線"]
         總分 += 加分
