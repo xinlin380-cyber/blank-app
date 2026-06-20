@@ -9,42 +9,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="台股燈號", page_icon="💡", layout="wide")
-st.markdown("<h1>💡 台股燈號 L10.23.7</h1>", unsafe_allow_html=True)
-
-with st.expander("📖 點我看使用說明書 & 分數算法", expanded=False):
-    st.markdown("""
-    ### 怎麼用，3 步驟
-    1. **輸入代號**：打 4 位數如 `2330` `2603` `6428`，按 Enter 就跑
-    2. **熱門股**：點上方「🔥選擇熱門股」一鍵帶入台積電、長榮等
-    3. **看燈號**：大數字是總分，下面 5 張卡片是明細
-    
-    ### 分數怎麼算，100 分滿分
-    | 指標 | 佔分 | 加分條件 |
-    | --- | --- | --- |
-    | **年線趨勢** | 40 | 股價 > 年線MA250 才給分 |
-    | **RSI強弱** | 15 | <30超跌+15, 30-50+10, 50-70+5 |
-    | **成交量** | 15 | >1.5倍爆量+15, >1.0倍+10, 量縮+5 |
-    | **MACD動能** | 15 | 柱狀體>0 才給分 |
-    | **短線均線** | 15 | 價>MA20>MA60 +15, 價>MA20 +10 |
-    
-    **70-100 綠燈 買進訊號｜40-69 黃燈 觀望｜0-39 紅燈 避開**
-    
-    ### 資料來源
-    **上市櫃**：Yahoo Finance，`.TW` 上市 `.TWO` 上櫃  
-    **興櫃**：FinMind API，抓最近半年  
-    **未上市**：私人公司無公開報價，查不到
-    
-    ### 常見問題
-    **Q: 2603 昨天 55 分今天 30 分？**  
-    A: 跌破年線直接 -40 分。看 5 張卡片明細最準。
-    
-    **Q: 出現「查無資料」？**  
-    A: 代號打錯、未上市、或剛上市櫃不到 20 天。去 isin.twse.com.tw 查。
-    
-    **這是技術分析輔助工具，非投資建議。高分不保證漲，低分不保證跌。**
-    """)
-
-st.markdown("<p style='text-align: center; font-size: 24px;'>穩定版 | 上市上櫃興櫃全支援+K線+不跳頁</p>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
@@ -68,14 +32,46 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.5</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23.7</h1>", unsafe_allow_html=True)
+
+with st.expander("📖 點我看使用說明書 & 分數算法", expanded=False):
+    st.markdown("""
+    ### 怎麼用，3 步驟
+    1. **輸入代號**：打 4 位數如 `2330` `2603` `6428`，按 Enter 就跑
+    2. **熱門股**：點上方「🔥選擇熱門股」一鍵帶入台積電、長榮等
+    3. **看燈號**：大數字是總分，下面 5 張卡片是明細
+
+    ### 分數怎麼算，100 分滿分
+    | 指標 | 佔分 | 加分條件 |
+    | --- | --- | --- |
+    | **年線趨勢** | 40 | 股價 > 年線MA250 才給分 |
+    | **RSI強弱** | 15 | <30超跌+15, 30-50+10, 50-70+5 |
+    | **成交量** | 15 | >1.5倍爆量+15, >1.0倍+10, 量縮+5 |
+    | **MACD動能** | 15 | 柱狀體>0 才給分 |
+    | **短線均線** | 15 | 價>MA20>MA60 +15, 價>MA20 +10 |
+
+    **70-100 綠燈 買進訊號｜40-69 黃燈 觀望｜0-39 紅燈 避開**
+
+    ### 資料來源
+    **上市櫃**：Yahoo Finance，`.TW` 上市 `.TWO` 上櫃
+    **興櫃**：FinMind API，抓最近半年
+    **未上市**：私人公司無公開報價，查不到
+
+    ### 常見問題
+    **Q: 2603 昨天 55 分今天 30 分？**
+    A: 跌破年線直接 -40 分。看 5 張卡片明細最準。
+
+    **Q: 出現「查無資料」？**
+    A: 代號打錯、未上市、或剛上市櫃不到 20 天。去 isin.twse.com.tw 查。
+
+    **這是技術分析輔助工具，非投資建議。高分不保證漲，低分不保證跌。**
+    """)
+
 st.markdown("<p style='text-align: center; font-size: 24px;'></p>", unsafe_allow_html=True)
 
-# 1. 初始化，從網址讀取
 if 'current_stock' not in st.session_state:
     st.session_state.current_stock = st.query_params.get("stock", "")
 
-# 2. 熱門標籤，直接改 session_state，不用 rerun
 hot_stocks = {
     "台積電2330":"2330", "0050":"0050", "00878":"00878",
     "長榮2603":"2603", "鴻海2317":"2317", "易華電6428":"6428",
@@ -87,7 +83,6 @@ if 選擇!= "🔥 選擇熱門股":
     st.session_state.current_stock = hot_stocks[選擇]
     st.query_params["stock"] = hot_stocks[選擇]
 
-# 3. 輸入框，key綁定 current_stock，按 Enter 就直接觸發
 st.text_input(
     "輸入任意台股代號",
     placeholder="例如：2330上市、6428上櫃、3450興櫃",
@@ -95,7 +90,6 @@ st.text_input(
     label_visibility="collapsed"
 )
 
-# 4. 按鈕現在只是裝飾，輸入框 Enter 就會跑了
 st.button("⚡ 開始掃描", use_container_width=True, type="primary")
 
 @st.cache_data(ttl=3600)
@@ -106,38 +100,40 @@ def get_stock_data(stock_code):
 
     try:
         ticker = f"{stock}.TW"
-        df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
-        if not df.empty and len(df) > 20: 市場別 = "上市"
+        df = yf.download(ticker, period="1y", progress=False, auto_adjust=True, timeout=10)
+        if not df.empty and len(df) > 20:
+            市場別 = "上市"
+            return df.dropna(), 市場別
     except: pass
 
-    if df.empty:
-        try:
-            ticker = f"{stock}.TWO"
-            df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
-            if not df.empty and len(df) > 20: 市場別 = "上櫃"
-        except: pass
+    try:
+        ticker = f"{stock}.TWO"
+        df = yf.download(ticker, period="1y", progress=False, auto_adjust=True, timeout=10)
+        if not df.empty and len(df) > 20:
+            市場別 = "上櫃"
+            return df.dropna(), 市場別
+    except: pass
 
-    if df.empty:
-        try:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
-            url = "https://api.finmindtrade.com/api/v4/data"
-            params = {
-                "dataset": "TaiwanStockPrice",
-                "data_id": stock,
-                "start_date": start_date,
-                "end_date": end_date
-            }
-            res = requests.get(url, params=params, timeout=10)
-            data = res.json()
-            if data['status'] == 200 and data['data']:
-                df = pd.DataFrame(data['data'])
-                df = df.rename(columns={'date':'Date','open':'Open','max':'High','min':'Low','close':'Close','Trading_Volume':'Volume'})
-                df['Date'] = pd.to_datetime(df['Date'])
-                df = df.set_index('Date').sort_index()
-                市場別 = "興櫃"
-        except Exception as e:
-            st.warning(f"興櫃資料抓取失敗: {e}")
+    try:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
+        url = "https://api.finmindtrade.com/api/v4/data"
+        params = {
+            "dataset": "TaiwanStockPrice",
+            "data_id": stock,
+            "start_date": start_date,
+            "end_date": end_date
+        }
+        res = requests.get(url, params=params, timeout=5)
+        data = res.json()
+        if data.get('status') == 200 and data.get('data'):
+            df = pd.DataFrame(data['data'])
+            df = df.rename(columns={'date':'Date','open':'Open','max':'High','min':'Low','close':'Close','Trading_Volume':'Volume'})
+            df['Date'] = pd.to_datetime(df['Date'])
+            df = df.set_index('Date').sort_index()
+            市場別 = "興櫃"
+    except:
+        pass
 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -162,10 +158,9 @@ def 計算指標(df):
     df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
     return df.ffill()
 
-# 5. 統一用 st.session_state.current_stock，改了就立刻生效
 stock = st.session_state.current_stock.strip()
 if stock:
-    st.query_params["stock"] = stock # 保持網址同步
+    st.query_params["stock"] = stock
     with st.spinner(f"抓取 {stock} 真實數據中..."):
         df, 市場別 = get_stock_data(stock)
 
