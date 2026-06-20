@@ -15,7 +15,6 @@ st.markdown("""
 <style>
 .stApp {background: #F8F3E9;}
 .block-container {padding-top: 1rem; max-width: 1200px;}
-/* 主字體 + Emoji專用字體 */
 html, body, [class*="css"] {
     font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif!important;
     line-height: 2.0!important;
@@ -29,11 +28,10 @@ h1 {
     font-weight: 700!important;
     line-height: 1.4!important;
 }
-p, div, span, label,.stSelectbox,.stTextInput {
+p, div, span, label,.stSelectbox,.stTextInput, li {
     font-size: 18px!important;
     color: #4A4A4A!important;
 }
-/* Expander 專門處理 */
 [data-testid="stExpander"] details {
     border: 2px solid #D6C0B7!important;
     border-radius: 12px!important;
@@ -69,19 +67,62 @@ input[type="text"] {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.16</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23.17</h1>", unsafe_allow_html=True)
 
-with st.expander("📖 點我看使用說明與分類評分標準", expanded=False):
-    st.markdown("### 🎯 智慧分類評分")
-    st.markdown("系統自動判斷商品類型，套用不同權重")
+with st.expander("📖 點我看完整使用說明書", expanded=False):
+    st.markdown("### 🚀 怎麼用，3 步驟")
+    st.markdown("")
+    st.markdown("**1. 輸入代號**：4~6 碼都可，如 `2330` `0050` `00403A` `00679B` `00632R`，按 Enter 就跑")
+    st.markdown("")
+    st.markdown("**2. 熱門股**：點上方「🔥選擇熱門股」一鍵帶入，懶人專用")
+    st.markdown("")
+    st.markdown("**3. 看燈號**：大數字是總分，下面 5 張卡片是明細。綠燈可買、黃燈觀望、紅燈避開")
+    st.markdown("")
     st.markdown("---")
-    st.markdown("**📊 1. 個股**：2330、2603｜年線40分最重要")
-    st.markdown("**📈 2. 原型ETF**：0050、00403A｜年線50分+MACD 20分")
-    st.markdown("**⚡ 3. 槓桿反向**：00632R、00675L｜RSI 20分+MACD 25分")
-    st.markdown("**💰 4. 債券ETF**：00679B｜年線60分，不看成交量")
-    st.markdown("**🎰 5. 權證**：03開頭6碼｜RSI 30分最關鍵")
+    st.markdown("")
+    st.markdown("### 🎯 智慧分類評分，5 種標準")
+    st.markdown("")
+    st.markdown("**📊 1. 個股**：2330、2603、6428")
+    st.markdown("權重：年線 40｜RSI 15｜量 15｜MACD 15｜均線 15")
+    st.markdown("說明：傳統標準，趨勢最重要")
+    st.markdown("")
+    st.markdown("**📈 2. 原型ETF**：0050、00878、00403A")
+    st.markdown("權重：年線 50｜RSI 10｜量 5｜MACD 20｜均線 15")
+    st.markdown("說明：ETF 跟大盤走，年線 + MACD 動能最準")
+    st.markdown("")
+    st.markdown("**⚡ 3. 槓桿反向**：00632R、00675L")
+    st.markdown("權重：年線 30｜RSI 20｜量 10｜MACD 25｜均線 15")
+    st.markdown("說明：短線交易，RSI + MACD 權重拉高")
+    st.markdown("")
+    st.markdown("**💰 4. 債券ETF**：00679B、00687B")
+    st.markdown("權重：年線 60｜RSI 10｜量 0｜MACD 15｜均線 15")
+    st.markdown("說明：債券不看成交量，年線定生死")
+    st.markdown("")
+    st.markdown("**🎰 5. 權證**：03開頭6碼")
+    st.markdown("權重：年線 20｜RSI 30｜量 20｜MACD 15｜均線 15")
+    st.markdown("說明：波動大，RSI + 成交量最關鍵")
+    st.markdown("")
     st.markdown("---")
-    st.markdown("**🟢 70-100 綠燈買進**｜**🟡 40-69 黃燈觀望**｜**🔴 0-39 紅燈避開**")
+    st.markdown("")
+    st.markdown("### 📊 燈號標準")
+    st.markdown("")
+    st.markdown("**🟢 70-100 分 綠燈**：買進訊號，技術面全面轉強")
+    st.markdown("")
+    st.markdown("**🟡 40-69 分 黃燈**：觀望，多空不明等表態")
+    st.markdown("")
+    st.markdown("**🔴 0-39 分 紅燈**：避開，技術面偏弱")
+    st.markdown("")
+    st.markdown("---")
+    st.markdown("")
+    st.markdown("### ⚠️ 注意事項")
+    st.markdown("")
+    st.markdown("1. **新上市商品**：2025年新ETF如00403A，Yahoo可能延遲1-2週才有資料")
+    st.markdown("")
+    st.markdown("2. **年線不足**：上市未滿250天，年線不準但會繼續算其他4項")
+    st.markdown("")
+    st.markdown("3. **非投資建議**：這是技術分析輔助工具，請自負盈虧")
+    st.markdown("")
+    st.markdown("**資料來源**：Yahoo Finance 上市.TW + 上櫃.TWO｜興櫃用 FinMind API")
 
 st.markdown("<p style='text-align: center; font-size: 20px;'>✨ 分類評分版｜智慧辨識個股ETF權證 ✨</p>", unsafe_allow_html=True)
 
