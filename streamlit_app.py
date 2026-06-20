@@ -33,7 +33,7 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 """, unsafe_allow_html=True)
 
 st.markdown("<h1>💡 台股燈號 L10.23.5</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 24px;'>穩定版 | 上市上櫃興櫃全支援+K線+不跳頁</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 24px;'></p>", unsafe_allow_html=True)
 
 # 1. 初始化，從網址讀取
 if 'current_stock' not in st.session_state:
