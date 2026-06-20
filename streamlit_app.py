@@ -3,6 +3,9 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from FinMind.data import DataLoader
+import warnings
+warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="台股燈號", page_icon="💡", layout="wide")
 
@@ -14,9 +17,6 @@ st.markdown("""
 h1 {font-size: 48px!important; text-align: center!important; margin-bottom: 0!important; color: #4A4A4A!important;}
 p,div,span {font-size: 20px!important;}
 input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; border: 3px solid #D6C0B7!important; font-size: 28px!important; text-align: center!important; padding: 16px!important; border-radius: 12px!important;}
-.hot-wrap {text-align: center; margin: 25px 0;}
-.hot-tag {display: inline-block; background: #D6C0B7; border: 3px solid #C9B7A7; color: #4A4A4A!important; padding: 12px 24px; margin: 8px; border-radius: 15px; font-size: 22px!important; text-decoration: none!important; cursor: pointer;}
-.hot-tag:hover {background: #C9B7A7;}
 .light-box {padding: 50px; border-radius: 25px; text-align: center; margin: 35px 0; border: 8px solid;}
 .light-green {border-color: #8CB88C; background: #D6C0B7;}
 .light-yellow {border-color: #D6C07C; background: #D6C0B7;}
@@ -31,8 +31,8 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 24px;'></p>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 24px;'>穩定版 | 上市上櫃興櫃全支援+K線+不跳頁</p>", unsafe_allow_html=True)
 
 if 'stock_code' not in st.session_state:
     st.session_state.stock_code = st.query_params.get("stock", "")
@@ -41,21 +41,27 @@ def set_stock(code):
     st.session_state.stock_code = code
     st.query_params["stock"] = code
 
-cols = st.columns(5)
-hot_stocks = {"台積電2330":"2330", "0050":"0050", "00878":"00878", "長榮2603":"2603", "鴻海2317":"2317"}
-for i, (name, code) in enumerate(hot_stocks.items()):
-    with cols[i]:
-        if st.button(name, key=f"hot_{code}", use_container_width=True):
-            set_stock(code)
-            st.rerun()
+# 熱門標籤改下拉，6顆以上才不會擠爆
+hot_stocks = {
+    "台積電2330":"2330", "0050":"0050", "00878":"00878",
+    "長榮2603":"2603", "鴻海2317":"2317", "易華電6428":"6428",
+    "00940":"00940", "00919":"00919", "世芯KY3661":"3661"
+}
+選項 = ["🔥 選擇熱門股"] + list(hot_stocks.keys())
+選擇 = st.selectbox("", 選項, label_visibility="collapsed")
+if 選擇!= "🔥 選擇熱門股":
+    set_stock(hot_stocks[選擇])
+    st.rerun()
 
 def run_scan():
-    st.session_state.stock_code = st.session_state.input_box
-    st.query_params["stock"] = st.session_state.input_box
+    code = st.session_state.input_box.strip()
+    if code:
+        st.session_state.stock_code = code
+        st.query_params["stock"] = code
 
 st.text_input(
     "輸入任意台股代號",
-    placeholder="例如：2330、00940、00919、2603",
+    placeholder="例如：2330上市、6428上櫃、3450興櫃",
     key="input_box",
     value=st.session_state.stock_code,
     on_change=run_scan,
@@ -66,33 +72,55 @@ if st.button("⚡ 開始掃描", use_container_width=True, type="primary"):
     run_scan()
     st.rerun()
 
-if st.session_state.stock_code:
-    stock = st.session_state.stock_code.replace('.TW','')
-    with st.spinner(f"從Yahoo抓取 {stock} 數據中..."):
+@st.cache_data(ttl=3600) # 快取1小時
+def get_stock_data(stock_code):
+    stock = stock_code.replace('.TW','').replace('.TWO','').strip()
+    df = pd.DataFrame()
+    市場別 = ""
+
+    # 1. 先試上市.TW
+    try:
+        ticker = f"{stock}.TW"
+        df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
+        if not df.empty and len(df) > 20:
+            市場別 = "上市"
+    except: pass
+
+    # 2. 上市沒有就試上櫃.TWO
+    if df.empty:
         try:
-            ticker = f"{stock}.TW"
+            ticker = f"{stock}.TWO"
             df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
-            if df.empty:
-                st.error(f"❌ Yahoo查無 {stock}，確認代號是否正確")
-                st.stop()
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            df = df.dropna()
-        except Exception as e:
-            st.error(f"❌ Yahoo抓取失敗：{e}")
-            st.stop()
+            if not df.empty and len(df) > 20:
+                市場別 = "上櫃"
+        except: pass
 
-    # 計算指標前先檢查
-    if len(df) < 250:
-        st.warning(f"⚠️ {stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
+    # 3. 都沒有就試 FinMind 興櫃
+    if df.empty:
+        try:
+            api = DataLoader()
+            # FinMind抓興櫃日線
+            df = api.taiwan_stock_daily(stock_id=stock, start_date='2024-01-01')
+            if not df.empty:
+                df = df.rename(columns={'date':'Date','open':'Open','max':'High','min':'Low','close':'Close','Trading_Volume':'Volume'})
+                df['Date'] = pd.to_datetime(df['Date'])
+                df = df.set_index('Date').sort_index()
+                市場別 = "興櫃"
+        except: pass
 
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+
+    return df.dropna(), 市場別
+
+def 計算指標(df):
     df['MA20'] = df['Close'].rolling(20, min_periods=1).mean()
     df['MA60'] = df['Close'].rolling(60, min_periods=1).mean()
     df['MA250'] = df['Close'].rolling(250, min_periods=1).mean()
     delta = df['Close'].diff()
     gain = delta.where(delta > 0, 0).rolling(14, min_periods=1).mean()
     loss = -delta.where(delta < 0, 0).rolling(14, min_periods=1).mean()
-    rs = gain / loss
+    rs = gain / loss.replace(0, 1e-9) # 避免除零
     df['RSI'] = 100 - (100 / (1 + rs))
     df['Volume_MA'] = df['Volume'].rolling(20, min_periods=1).mean()
     df['Volume_Ratio'] = df['Volume'] / df['Volume_MA']
@@ -101,16 +129,25 @@ if st.session_state.stock_code:
     df['MACD'] = ema12 - ema26
     df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
     df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
+    return df.ffill()
 
-    # 關鍵修復：不用dropna()，改用ffill()補齊
-    df = df.ffill()
+if st.session_state.stock_code:
+    stock = st.session_state.stock_code
+    with st.spinner(f"抓取 {stock} 真實數據中..."):
+        df, 市場別 = get_stock_data(stock)
 
-    # 防呆：如果還是空的就報錯
-    if df.empty:
-        st.error(f"❌ {stock} 計算指標後無有效數據")
+    if df.empty or len(df) < 20:
+        st.error(f"❌ {stock} 查無資料或資料不足20天。未上市私人公司無公開報價")
+        st.info("💡 查詢上市上櫃: https://isin.twse.com.tw | 查詢興櫃: https://www.tpex.org.tw")
         st.stop()
 
+    st.success(f"✅ 成功抓取 {stock} {市場別} 真實數據，共{len(df)}天")
+    if len(df) < 250:
+        st.warning(f"⚠️ {stock} 只有{len(df)}天資料，年線會不準，但繼續分析")
+
+    df = 計算指標(df)
     latest = df.iloc[-1]
+
     price = float(latest['Close'])
     ma250 = float(latest['MA250']) if not pd.isna(latest['MA250']) else 0
     ma20 = float(latest['MA20'])
@@ -120,9 +157,7 @@ if st.session_state.stock_code:
     macd_hist = float(latest['MACD_Hist']) if not pd.isna(latest['MACD_Hist']) else 0
 
     年線上方 = price > ma250 if ma250 > 0 else False
-    總分 = 0
-    分析 = []
-    顏色 = []
+    總分, 分析, 顏色 = 0, [], []
 
     if 年線上方:
         總分 += 40
@@ -191,27 +226,33 @@ if st.session_state.stock_code:
     st.markdown(f'<div class="light-box {邊框}"><div class="score-big">{總分}</div><div class="title-big">{建議}</div></div>', unsafe_allow_html=True)
 
     cols = st.columns(5)
-    for i, (文, 色) in enumerate(zip(分析, 顏色)):
+    for i, (文案, 卡片顏色) in enumerate(zip(分析, 顏色)):
         with cols[i]:
-            st.markdown(f'<div class="card-box card-{色}">{文}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="card-box card-{卡片顏色}">{文案}</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown(f"### 📊 {stock} K線圖")
+    st.subheader(f"📈 {stock} {市場別} K線圖")
+
+    df_plot = df.tail(250).copy()
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
-    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='K線', increasing_line_color='#8CB88C', decreasing_line_color='#E88C8C'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], line=dict(color='#6D5A50', width=1), name='MA20'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df['MA60'], line=dict(color='#D6C07C', width=1), name='MA60'), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df['MA250'], line=dict(color='#E88C8C', width=2), name='年線'), row=1, col=1)
-    colors = ['#8CB88C' if row['Close'] >= row['Open'] else '#E88C8C' for _, row in df.iterrows()]
-    fig.add_trace(go.Bar(x=df.index, y=df['Volume'], marker_color=colors, name='成交量'), row=2, col=1)
-    fig.update_layout(plot_bgcolor='#F8F3E9', paper_bgcolor='#F8F3E9', font=dict(color='#4A4A4A'), xaxis_rangeslider_visible=False, height=600, showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    fig.update_xaxes(gridcolor='#E9D8C1')
-    fig.update_yaxes(gridcolor='#E9D8C1')
+
+    fig.add_trace(go.Candlestick(x=df_plot.index, open=df_plot['Open'], high=df_plot['High'], low=df_plot['Low'], close=df_plot['Close'],
+                                 increasing_line_color='#E88C8C', decreasing_line_color='#8CB88C', name='K線'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA20'], line=dict(color='#D6C07C', width=1), name='MA20'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA60'], line=dict(color='#8CB88C', width=1), name='MA60'), row=1, col=1)
+    if ma250 > 0:
+        fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['MA250'], line=dict(color='#4A4A4A', width=2), name='年線'), row=1, col=1)
+
+    colors = ['#E88C8C' if row['Open'] > row['Close'] else '#8CB88C' for _, row in df_plot.iterrows()]
+    fig.add_trace(go.Bar(x=df_plot.index, y=df_plot['Volume'], marker_color=colors, name='成交量'), row=2, col=1)
+
+    fig.update_layout(xaxis_rangeslider_visible=False, height=600, showlegend=True,
+                      plot_bgcolor='#F8F3E9', paper_bgcolor='#F8F3E9', font=dict(color='#4A4A4A'))
+    fig.update_yaxes(title_text="股價", row=1, col=1)
+    fig.update_yaxes(title_text="成交量", row=2, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("---")
-    st.markdown("### 🔍 Yahoo原始數據驗證")
-    st.write(f"**股票**: {stock}.TW | **日期**: {df.index[-1].strftime('%Y-%m-%d')}")
-    st.dataframe(df[['Open','High','Low','Close','Volume']].tail(10).round(2), use_container_width=True)
-else:
-    st.info("👆 輸入任意台股代號，例如：2330、00940、00919、2603")
+    st.subheader("🔍 數據驗證表")
+    驗證表 = df.tail(5)[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
+    驗證表.index = 驗證表.index.strftime('%Y-%m-%d')
+    st.dataframe(驗證表, use_container_width=True)
