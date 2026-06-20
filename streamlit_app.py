@@ -67,7 +67,7 @@ input[type="text"] {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.19</h1>", unsafe_allow_html=True)
+st.markdown("<h1>🚥台股紅綠燈</h1>", unsafe_allow_html=True)
 
 with st.expander("📖 點我看完整使用說明書，新手必讀", expanded=False):
     st.markdown("### 🚀 怎麼用，3 步驟超簡單")
