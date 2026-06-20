@@ -32,7 +32,7 @@ input[type="text"] {background: #E9D8C1!important; color: #4A4A4A!important; bor
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💡 台股燈號 L10.23.7</h1>", unsafe_allow_html=True)
+st.markdown("<h1>💡 台股燈號 L10.23.8</h1>", unsafe_allow_html=True)
 
 with st.expander("📖 點我看使用說明書 & 分數算法", expanded=False):
     st.markdown("""
@@ -149,8 +149,10 @@ def 計算指標(df):
     loss = -delta.where(delta < 0, 0).rolling(14, min_periods=1).mean()
     rs = gain / loss.replace(0, 1e-9)
     df['RSI'] = 100 - (100 / (1 + rs))
-    df['Volume_MA'] = df['Volume'].rolling(20, min_periods=1).mean()
+
+    df['Volume_MA'] = df['Volume'].rolling(20, min_periods=1).mean().replace(0, 1)
     df['Volume_Ratio'] = df['Volume'] / df['Volume_MA']
+
     ema12 = df['Close'].ewm(span=12, adjust=False).mean()
     ema26 = df['Close'].ewm(span=26, adjust=False).mean()
     df['MACD'] = ema12 - ema26
@@ -160,6 +162,10 @@ def 計算指標(df):
 
 stock = st.session_state.current_stock.strip()
 if stock:
+    if not stock.isdigit() or len(stock)!= 4:
+        st.error(f"❌ 代號錯誤：{stock}，請輸入4位數字台股代號，例如 2330")
+        st.stop()
+
     st.query_params["stock"] = stock
     with st.spinner(f"抓取 {stock} 真實數據中..."):
         df, 市場別 = get_stock_data(stock)
