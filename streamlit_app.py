@@ -139,7 +139,7 @@ with st.expander("📖 點我看完整使用說明書，新手必讀", expanded=
     st.markdown("")
     st.markdown("**資料來源**：Yahoo Finance 免費公開資料")
 
-st.markdown("<p style='text-align: center; font-size: 20px;'>✨ 白話文版｜新手友善✨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 20px;'>✨新手友善✨</p>", unsafe_allow_html=True)
 
 if 'current_stock' not in st.session_state:
     st.session_state.current_stock = st.query_params.get("stock", "")
